@@ -11,17 +11,11 @@
     "storage",
     "contextMenus"
   ],
-  "optional_host_permissions": [
-    "https://*/*"
-  ],
+  "optional_host_permissions": ["https://*/*"],
   "content_scripts": [
     {
-      "matches": [
-        "https://*/*"
-      ],
-      "js": [
-        "content.js"
-      ],
+      "matches": ["https://*/*"],
+      "js": ["content.js"],
       "run_at": "document_end",
       "all_frames": false
     }
@@ -54,12 +48,9 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "levelup-extension.js"
-      ],
-      "matches": [
-        "https://*/*"
-      ]
+      "resources": ["levelup-extension.js"],
+      "matches": ["https://*/*"]
     }
   ]
 }
+

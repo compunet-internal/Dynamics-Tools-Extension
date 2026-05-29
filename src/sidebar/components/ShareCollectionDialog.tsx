@@ -527,9 +527,9 @@ const ShareCollectionDialog: React.FC<ShareCollectionDialogProps> = ({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Alert severity='info' sx={{ mb: 2 }}>
               <Typography variant='body2'>
-                Your collection will be shared to the CompuNet Dynamics Tools Community repository as a GitHub
-                Issue. The community can then review, test, and include it in the official
-                collection.
+                Your collection will be shared to the CompuNet Dynamics Tools Community repository
+                as a GitHub Issue. The community can then review, test, and include it in the
+                official collection.
               </Typography>
             </Alert>
 

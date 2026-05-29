@@ -154,7 +154,9 @@ export class LevelUpExtension {
         const cached = this.getCachedEntityMetadata();
         if (!cached) {
           // eslint-disable-next-line no-console
-          console.log('CompuNet Dynamics Tools: No cached entity metadata found, populating cache...');
+          console.log(
+            'CompuNet Dynamics Tools: No cached entity metadata found, populating cache...'
+          );
           await this.getEntityMetadata();
         } else {
           // eslint-disable-next-line no-console
@@ -162,7 +164,10 @@ export class LevelUpExtension {
         }
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.warn('CompuNet Dynamics Tools: Failed to populate entity metadata cache on init:', error);
+        console.warn(
+          'CompuNet Dynamics Tools: Failed to populate entity metadata cache on init:',
+          error
+        );
       }
 
       // eslint-disable-next-line no-console
@@ -187,7 +192,10 @@ export class LevelUpExtension {
 
       console.log(`CompuNet Dynamics Tools: Cache key set for environment: ${hostname}`);
     } catch (error) {
-      console.warn('CompuNet Dynamics Tools: Failed to get environment URL, using default cache key:', error);
+      console.warn(
+        'CompuNet Dynamics Tools: Failed to get environment URL, using default cache key:',
+        error
+      );
       this.cacheKey = 'levelup_entity_metadata_cache';
     }
   }
@@ -351,7 +359,9 @@ export class LevelUpExtension {
       // If we have cached data, return it even if it's expired
       const cached = this.getCachedEntityMetadata();
       if (cached) {
-        console.log('CompuNet Dynamics Tools: API failed, using expired cached entity metadata from localStorage');
+        console.log(
+          'CompuNet Dynamics Tools: API failed, using expired cached entity metadata from localStorage'
+        );
         return cached.entities;
       }
     }

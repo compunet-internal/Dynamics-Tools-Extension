@@ -6,8 +6,8 @@ CompuNet Dynamics Tools is a browser extension that helps Dynamics 365, Power Ap
 
 There are two modes in the extension: Sidebar mode and Express Mode. When you click on the extension button, the popup you see is the Express Mode. Below is a summary of what is available in Sidebar mode and Popup mode.
 
-| Sidebar Mode | Express Mode |
-|--------------|--------------|
+| Sidebar Mode                                                                                                                                     | Express Mode                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
 | 1. Impersonation<br>2. Form Actions<br>3. Navigation Actions<br>4. Custom Commands<br>5. Debugging Actions<br>6. Dark Theme/Light Theme switcher | 1. Form Actions<br>2. Navigation Actions |
 
 You can launch Sidebar from the popup by clicking the links in the bottom.
@@ -102,6 +102,7 @@ The extension organizes actions into different categories accessible through the
 - **🔧 Extension Configuration**: Switch between Default and Simple Sidebar modes.
 
 ## Credits
-* Bob Guidinger's original idea on Impersonation
-* Ivan Ficko for the original PR in v3 that added impersonation capability to Level up
-* [Rocket Icon by Jerry Low](https://www.iconfinder.com/jerrylow)
+
+- Bob Guidinger's original idea on Impersonation
+- Ivan Ficko for the original PR in v3 that added impersonation capability to Level up
+- [Rocket Icon by Jerry Low](https://www.iconfinder.com/jerrylow)
