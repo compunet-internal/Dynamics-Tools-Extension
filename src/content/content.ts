@@ -203,10 +203,18 @@ class ContentScript {
             window.clearTimeout(settleErrorTimer);
           }
 
+          const normalizedError = (response.error || '').toLowerCase();
+          const settleDelayMs =
+            normalizedError.indexOf('unknown action') !== -1 ||
+            (normalizedError.indexOf('method') !== -1 &&
+              normalizedError.indexOf('not found on target object') !== -1)
+              ? 1200
+              : 120;
+
           // Give parallel listeners a short chance to return success before failing.
           settleErrorTimer = window.setTimeout(() => {
             finish(pendingError || { success: false, error: 'Unknown injected script error' });
-          }, 120);
+          }, settleDelayMs);
         }
       };
 

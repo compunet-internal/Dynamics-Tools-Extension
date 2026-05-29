@@ -3,6 +3,7 @@
 declare global {
   interface Window {
     levelUpExtension: LevelUpExtension;
+    __levelUpRuntimeVersion?: number;
   }
 }
 
@@ -55,11 +56,14 @@ interface ActionMethodConfig {
 
 export class LevelUpExtension {
   private readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly runtimeVersion: number;
   private cacheKey: string = 'levelup_entity_metadata_cache'; // Default, will be updated in init
   private formActions: FormActions;
   private debuggingActions: DebuggingActions;
 
   constructor() {
+    this.runtimeVersion = (window.__levelUpRuntimeVersion || 0) + 1;
+    window.__levelUpRuntimeVersion = this.runtimeVersion;
     this.formActions = new FormActions(this);
     this.debuggingActions = new DebuggingActions();
     this.init();
@@ -246,6 +250,11 @@ export class LevelUpExtension {
   private setupMessageListener(): void {
     window.addEventListener('message', async event => {
       if (event.source !== window) {
+        return;
+      }
+
+      // Ignore requests on stale script instances after reinjection.
+      if (window.__levelUpRuntimeVersion !== this.runtimeVersion) {
         return;
       }
 
