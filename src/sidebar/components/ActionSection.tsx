@@ -29,6 +29,7 @@ interface ActionButton {
   label: string;
   icon: React.ComponentType<any>;
   tooltip?: string;
+  onTooltipOpen?: () => void;
   category?: 'common' | 'advanced';
   priority?: number;
 }
@@ -320,6 +321,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                       label={button.label}
                       icon={button.icon}
                       tooltip={button.tooltip}
+                      onTooltipOpen={button.onTooltipOpen}
                       onClick={() => onActionClick(button.id)}
                       isFavorite={favoriteIds.includes(button.id)}
                       onFavoriteToggle={() => onFavoriteToggle(button.id)}

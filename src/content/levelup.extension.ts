@@ -14,6 +14,17 @@ interface Solution {
   ismanaged: boolean;
 }
 
+interface StoredSolutionOverride {
+  solutionId: string;
+}
+
+interface CurrentSolutionInfo {
+  solutionId: string;
+  friendlyname: string;
+  uniquename: string;
+  source: 'preferred' | 'default';
+}
+
 import {
   FormActionName,
   EntityMetadata,
@@ -97,6 +108,7 @@ export class LevelUpExtension {
       { actionName: 'open-security', method: 'openSecurity' },
       { actionName: 'open-system-jobs', method: 'openSystemJobs' },
       { actionName: 'open-solutions', method: 'openSolutions' },
+      { actionName: 'select-default-solution', method: 'selectDefaultSolution' },
       { actionName: 'open-processes', method: 'openProcesses' },
       { actionName: 'open-mailboxes', method: 'openMailboxes' },
       { actionName: 'open-main', method: 'openMain' },
@@ -573,6 +585,14 @@ export class LevelUpExtension {
    */
   public async getPreferredSolution(): Promise<Solution | null> {
     try {
+      return await this.getDataversePreferredSolution();
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private async getDataversePreferredSolution(): Promise<Solution | null> {
+    try {
       const webApiClient = WebApiClient.getInstance();
 
       // Use the WebAPI client to call the GetPreferredSolution function
@@ -593,6 +613,23 @@ export class LevelUpExtension {
     } catch (error) {
       return null;
     }
+  }
+
+  private normalizeSolutionId(solutionId: string): string {
+    return solutionId.replace(/[{}]/g, '').toLowerCase();
+  }
+
+  private escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  private async setPreferredSolutionOnServer(solutionId: string): Promise<void> {
+    const webApiClient = WebApiClient.getInstance();
+    await webApiClient.executeAction('SetPreferredSolution', {
+      SolutionId: this.normalizeSolutionId(solutionId),
+    });
   }
 
   /**
@@ -623,6 +660,255 @@ export class LevelUpExtension {
     } catch (error) {
       return null;
     }
+  }
+
+  private async getSolutionById(solutionId: string): Promise<Solution | null> {
+    try {
+      const webApiClient = WebApiClient.getInstance();
+      const normalizedSolutionId = this.normalizeSolutionId(solutionId);
+      const solution = (await webApiClient.retrieveRecord('solutions', normalizedSolutionId, [
+        'solutionid',
+        'uniquename',
+        'friendlyname',
+        'version',
+        'ismanaged',
+      ])) as Record<string, unknown>;
+
+      if (!solution?.solutionid) {
+        return null;
+      }
+
+      return {
+        uniquename: solution.uniquename as string,
+        friendlyname:
+          (solution.friendlyname as string) || (solution.uniquename as string) || 'Unnamed Solution',
+        solutionid: solution.solutionid as string,
+        version: (solution.version as string) || '',
+        ismanaged: Boolean(solution.ismanaged),
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private async getSolutionsForPicker(): Promise<Solution[]> {
+    const webApiClient = WebApiClient.getInstance();
+    const response = await webApiClient.retrieveMultiple('solutions', {
+      select: ['solutionid', 'uniquename', 'friendlyname', 'version', 'ismanaged'],
+      orderBy: ['friendlyname asc', 'uniquename asc'],
+    });
+
+    const rawSolutions = Array.isArray(response?.value) ? response.value : [];
+    return rawSolutions
+      .map((solution: Record<string, unknown>) => ({
+        uniquename: (solution.uniquename as string) || '',
+        friendlyname:
+          (solution.friendlyname as string) || (solution.uniquename as string) || 'Unnamed Solution',
+        solutionid: (solution.solutionid as string) || '',
+        version: (solution.version as string) || '',
+        ismanaged: Boolean(solution.ismanaged),
+      }))
+      .filter(solution => Boolean(solution.solutionid && solution.uniquename))
+      .sort((left, right) => left.friendlyname.localeCompare(right.friendlyname));
+  }
+
+  public async selectDefaultSolution(): Promise<string> {
+    try {
+      const [solutions, currentSolution] = await Promise.all([
+        this.getSolutionsForPicker(),
+        this.getPreferredSolution(),
+      ]);
+
+      if (solutions.length === 0) {
+        throw new Error('No solutions were found in the current environment.');
+      }
+
+      this.renderDefaultSolutionPicker(solutions, currentSolution);
+      return 'Default solution picker opened';
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      DynamicsUtils.showToast(`Failed to load solutions: ${message}`, 'error');
+      throw new Error(`Failed to load solutions: ${message}`);
+    }
+  }
+
+  public async getCurrentSolutionInfo(): Promise<CurrentSolutionInfo | null> {
+    const preferredSolution = await this.getDataversePreferredSolution();
+    if (preferredSolution) {
+      return {
+        solutionId: this.normalizeSolutionId(preferredSolution.solutionid),
+        friendlyname: preferredSolution.friendlyname,
+        uniquename: preferredSolution.uniquename,
+        source: 'preferred',
+      };
+    }
+
+    const defaultSolution = await this.getDefaultSolution();
+    if (defaultSolution) {
+      return {
+        solutionId: this.normalizeSolutionId(defaultSolution.solutionid),
+        friendlyname: defaultSolution.friendlyname,
+        uniquename: defaultSolution.uniquename,
+        source: 'default',
+      };
+    }
+
+    return null;
+  }
+
+  private renderDefaultSolutionPicker(
+    solutions: Solution[],
+    currentSolution: Solution | null
+  ): void {
+    const dialogId = 'levelup-default-solution-picker';
+    document.getElementById(`${dialogId}-backdrop`)?.remove();
+
+    const currentSolutionId = currentSolution
+      ? this.normalizeSolutionId(currentSolution.solutionid)
+      : undefined;
+    const selectedSolutionId = currentSolutionId || solutions[0].solutionid;
+
+    const optionsHtml = solutions
+      .map(solution => {
+        const normalizedSolutionId = this.normalizeSolutionId(solution.solutionid);
+        const isSelected = normalizedSolutionId === this.normalizeSolutionId(selectedSolutionId);
+        const solutionType = solution.ismanaged ? 'Managed' : 'Unmanaged';
+        const preferredMarker =
+          currentSolutionId && normalizedSolutionId === currentSolutionId
+            ? ' (current)'
+            : '';
+
+        return `<option value="${this.escapeHtml(normalizedSolutionId)}"${isSelected ? ' selected' : ''}>${this.escapeHtml(solution.friendlyname)} [${solutionType}]${preferredMarker}</option>`;
+      })
+      .join('');
+
+    const dialogHTML = `
+      <div class="levelup-dialog-backdrop" id="${dialogId}-backdrop" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <div style="
+          background: white;
+          border-radius: 10px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          width: min(520px, 92vw);
+          font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          overflow: hidden;
+        ">
+          <div style="
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div>
+              <div style="font-size: 18px; font-weight: 600;">Default Solution</div>
+              <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">Choose the solution Level Up should use in this environment.</div>
+            </div>
+            <button class="levelup-dialog-close" aria-label="Close dialog" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;line-height:1;">×</button>
+          </div>
+          <div style="padding: 20px; display: grid; gap: 16px;">
+            <label for="${dialogId}-select" style="font-size: 13px; font-weight: 600; color: #374151;">Solution</label>
+            <select id="${dialogId}-select" style="padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; color: #111827; background: #ffffff;">
+              ${optionsHtml}
+            </select>
+            <div id="${dialogId}-details" style="padding: 12px 14px; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 13px;"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+              <button id="${dialogId}-clear" style="padding: 10px 14px; border: 1px solid #cbd5e1; background: white; color: #334155; border-radius: 8px; cursor: pointer;">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const dialogElement = document.createElement('div');
+    dialogElement.innerHTML = dialogHTML;
+    document.body.appendChild(dialogElement.firstElementChild!);
+
+    const backdrop = document.getElementById(`${dialogId}-backdrop`);
+    const closeButton = backdrop?.querySelector('.levelup-dialog-close') as HTMLButtonElement | null;
+    const selectElement = document.getElementById(`${dialogId}-select`) as HTMLSelectElement | null;
+    const detailsElement = document.getElementById(`${dialogId}-details`) as HTMLDivElement | null;
+    const clearButton = document.getElementById(`${dialogId}-clear`) as HTMLButtonElement | null;
+
+    const updateDetails = () => {
+      if (!selectElement || !detailsElement) {
+        return;
+      }
+
+      const selectedSolution = solutions.find(
+        solution => this.normalizeSolutionId(solution.solutionid) === selectElement.value
+      );
+
+      if (!selectedSolution) {
+        detailsElement.textContent = 'Select a solution to see more detail.';
+        return;
+      }
+
+      const detailParts = [
+        `Unique name: ${selectedSolution.uniquename}`,
+        `Type: ${selectedSolution.ismanaged ? 'Managed' : 'Unmanaged'}`,
+      ];
+
+      if (selectedSolution.version) {
+        detailParts.push(`Version: ${selectedSolution.version}`);
+      }
+
+      detailsElement.textContent = detailParts.join(' | ');
+    };
+
+    const closeDialog = () => backdrop?.remove();
+
+    selectElement?.addEventListener('change', () => {
+      updateDetails();
+
+      if (!selectElement) {
+        return;
+      }
+
+      const selectedSolution = solutions.find(
+        solution => this.normalizeSolutionId(solution.solutionid) === selectElement.value
+      );
+      if (!selectedSolution) {
+        return;
+      }
+
+      void this.setPreferredSolutionOnServer(selectedSolution.solutionid)
+        .then(() => {
+          DynamicsUtils.showToast(
+            `Default solution set to ${selectedSolution.friendlyname} for this environment.`,
+            'success'
+          );
+          closeDialog();
+        })
+        .catch(error => {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          DynamicsUtils.showToast(`Failed to update preferred solution: ${message}`, 'error');
+        });
+    });
+    clearButton?.addEventListener('click', () => {
+      closeDialog();
+    });
+    closeButton?.addEventListener('click', closeDialog);
+    backdrop?.addEventListener('click', event => {
+      if (event.target === backdrop) {
+        closeDialog();
+      }
+    });
+
+    updateDetails();
+    selectElement?.focus();
   }
 
   /**

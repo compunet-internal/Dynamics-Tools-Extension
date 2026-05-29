@@ -103,6 +103,14 @@ export class ActionHandlerRegistry {
       { action: 'navigation:open-security', contentScriptMethod: 'openSecurity' },
       { action: 'navigation:open-system-jobs', contentScriptMethod: 'openSystemJobs' },
       { action: 'navigation:open-solutions', contentScriptMethod: 'openSolutions' },
+      {
+        action: 'navigation:select-default-solution',
+        contentScriptMethod: 'selectDefaultSolution',
+      },
+      {
+        action: 'navigation:get-current-solution',
+        contentScriptMethod: 'getCurrentSolutionInfo',
+      },
       { action: 'navigation:open-processes', contentScriptMethod: 'openProcesses' },
       { action: 'navigation:open-mailboxes', contentScriptMethod: 'openMailboxes' },
       { action: 'navigation:open-main', contentScriptMethod: 'openMain' },

@@ -7,6 +7,7 @@ export interface StandardActionButtonProps {
   label: string;
   icon: React.ComponentType<any>;
   tooltip?: string;
+  onTooltipOpen?: () => void;
   onClick: () => void;
   isFavorite?: boolean;
   onFavoriteToggle?: () => void;
@@ -29,6 +30,7 @@ const StandardActionButton: React.FC<StandardActionButtonProps> = ({
   label,
   icon: IconComponent,
   tooltip,
+  onTooltipOpen,
   onClick,
   isFavorite = false,
   onFavoriteToggle,
@@ -54,6 +56,7 @@ const StandardActionButton: React.FC<StandardActionButtonProps> = ({
     >
       <Box sx={{ position: 'relative' }}>
         <Tooltip
+          onOpen={onTooltipOpen}
           title={
             additionalInfo ? (
               <Box>

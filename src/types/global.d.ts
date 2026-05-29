@@ -42,6 +42,8 @@ export type NavigationActionName =
     | 'open-security'
     | 'open-system-jobs'
     | 'open-solutions'
+    | 'select-default-solution'
+    | 'get-current-solution'
     | 'open-processes'
     | 'open-mailboxes'
     | 'open-main'

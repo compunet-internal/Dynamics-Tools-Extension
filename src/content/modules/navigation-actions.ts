@@ -154,6 +154,20 @@ export class NavigationActions {
   }
 
   /**
+   * Open the in-page picker to choose the default solution for this environment
+   */
+  static async selectDefaultSolution(): Promise<string> {
+    return await window.levelUpExtension.selectDefaultSolution();
+  }
+
+  /**
+   * Get the current effective solution Level Up will use in this environment
+   */
+  static async getCurrentSolutionInfo(): Promise<unknown> {
+    return await window.levelUpExtension.getCurrentSolutionInfo();
+  }
+
+  /**
    * Open Processes
    */
   static openProcesses(): string {

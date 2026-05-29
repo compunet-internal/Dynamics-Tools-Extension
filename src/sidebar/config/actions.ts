@@ -320,6 +320,15 @@ export const navigationActions: ActionConfig[] = [
     shortIcon: '📦',
   },
   {
+    id: 'navigation:select-default-solution',
+    label: 'Default Solution',
+    icon: LayersIcon,
+    tooltip: 'Choose the default solution Level Up should use in this environment',
+    category: 'common',
+    shortLabel: 'Default Sol',
+    shortIcon: '🧩',
+  },
+  {
     id: 'navigation:open-processes',
     label: 'Processes',
     icon: ProjectIcon,

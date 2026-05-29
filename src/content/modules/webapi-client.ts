@@ -609,6 +609,22 @@ export class WebApiClient {
   }
 
   /**
+   * Execute a Dataverse action
+   */
+  async executeAction(
+    actionName: string,
+    parameters?: Record<string, unknown>
+  ): Promise<WebApiResponse> {
+    try {
+      await this.ensureInitialized();
+      return await this.executeActionWithFetch(actionName, parameters);
+    } catch (error) {
+      console.warn('DWA executeAction failed, falling back to fetch:', error);
+      return await this.executeActionWithFetch(actionName, parameters);
+    }
+  }
+
+  /**
    * Fallback executeFunction using fetch
    */
   private async executeFunctionWithFetch(
@@ -642,6 +658,49 @@ export class WebApiClient {
     }
 
     return await response.json();
+  }
+
+  /**
+   * Fallback executeAction using fetch
+   */
+  private async executeActionWithFetch(
+    actionName: string,
+    parameters?: Record<string, unknown>
+  ): Promise<WebApiResponse> {
+    const globalContext = Xrm.Utility.getGlobalContext();
+    const clientUrl = globalContext.getClientUrl();
+
+    const response = await fetch(
+      `${clientUrl}/api/data/v9.0/Microsoft.Dynamics.CRM.${actionName}`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0',
+        },
+        body: JSON.stringify(parameters || {}),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`
+      );
+    }
+
+    if (response.status === 204) {
+      return { success: true } as WebApiResponse;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return await response.json();
+    }
+
+    return { success: true } as WebApiResponse;
   }
 
   /**

@@ -22,6 +22,13 @@ import MyCommands from '#components/MyCommands';
 import RecentlyUsed from '#components/RecentlyUsed';
 import InformationButton from '#components/InformationButton';
 
+interface SidebarCurrentSolutionInfo {
+  solutionId: string;
+  friendlyname: string;
+  uniquename: string;
+  source: 'preferred' | 'default';
+}
+
 const App: React.FC = () => {
   const [loadingOpen, setLoadingOpen] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
@@ -47,6 +54,9 @@ const App: React.FC = () => {
   );
   const [favoriteIds, setFavoriteIds] = useState<DynamicsAction[]>([]);
   const [environmentUrl, setEnvironmentUrl] = useState<string>('');
+  const [currentSolutionTooltip, setCurrentSolutionTooltip] = useState(
+    'Choose the default solution Level Up should use in this environment'
+  );
 
   // Function to show inline alert for critical messages
   const showInlineAlert = (
@@ -67,8 +77,48 @@ const App: React.FC = () => {
 
   // Memoize action arrays for better performance
   const memoizedFormActions = useMemo(() => formActions, []);
-  const memoizedNavigationActions = useMemo(() => navigationActions, []);
   const memoizedDebuggingActions = useMemo(() => debuggingActions, []);
+
+  const refreshCurrentSolutionTooltip = async () => {
+    if (!isConnected) {
+      setCurrentSolutionTooltip('Choose the default solution Level Up should use in this environment');
+      return;
+    }
+
+    try {
+      const solutionInfo = await messageService.sendMessageTyped<SidebarCurrentSolutionInfo | null>(
+        'navigation:get-current-solution'
+      );
+
+      if (!solutionInfo) {
+        setCurrentSolutionTooltip(
+          'Choose the default solution Level Up should use in this environment'
+        );
+        return;
+      }
+
+      const sourceLabel =
+        solutionInfo.source === 'preferred' ? 'Dataverse preferred' : 'Dataverse default';
+
+      setCurrentSolutionTooltip(`Current: ${solutionInfo.friendlyname} (${sourceLabel})`);
+    } catch {
+      setCurrentSolutionTooltip('Choose the default solution Level Up should use in this environment');
+    }
+  };
+
+  const memoizedNavigationActions = useMemo(
+    () =>
+      navigationActions.map(action =>
+        action.id === 'navigation:select-default-solution'
+          ? {
+              ...action,
+              tooltip: currentSolutionTooltip,
+              onTooltipOpen: refreshCurrentSolutionTooltip,
+            }
+          : action
+      ),
+    [currentSolutionTooltip, isConnected]
+  );
 
   useEffect(() => {
     // Use shared helpers for detection and environment URL extraction
