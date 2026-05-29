@@ -670,9 +670,8 @@ export class WebApiClient {
     const globalContext = Xrm.Utility.getGlobalContext();
     const clientUrl = globalContext.getClientUrl();
 
-    const response = await fetch(
-      `${clientUrl}/api/data/v9.0/Microsoft.Dynamics.CRM.${actionName}`,
-      {
+    const executeActionPost = async (segment: string): Promise<WebApiResponse> => {
+      const response = await fetch(`${clientUrl}/api/data/v9.0/${segment}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -681,26 +680,44 @@ export class WebApiClient {
           'OData-Version': '4.0',
         },
         body: JSON.stringify(parameters || {}),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`
+        );
       }
-    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`
-      );
-    }
+      if (response.status === 204) {
+        return { success: true } as WebApiResponse;
+      }
 
-    if (response.status === 204) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        return await response.json();
+      }
+
       return { success: true } as WebApiResponse;
-    }
+    };
 
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      return await response.json();
-    }
+    try {
+      return await executeActionPost(`Microsoft.Dynamics.CRM.${actionName}`);
+    } catch (namespacedError) {
+      const errorMessage =
+        namespacedError instanceof Error ? namespacedError.message.toLowerCase() : '';
+      const isMissingSegment =
+        errorMessage.indexOf('http 404') !== -1 &&
+        (errorMessage.indexOf('resource not found for the segment') !== -1 ||
+          errorMessage.indexOf(`microsoft.dynamics.crm.${actionName.toLowerCase()}`) !== -1);
 
-    return { success: true } as WebApiResponse;
+      if (!isMissingSegment) {
+        throw namespacedError;
+      }
+
+      // Some environments expose unbound actions without the namespace segment.
+      return await executeActionPost(actionName);
+    }
   }
 
   /**

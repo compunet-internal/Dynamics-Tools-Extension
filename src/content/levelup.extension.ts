@@ -655,8 +655,44 @@ export class LevelUpExtension {
       return false;
     }
 
+    if (this.isReservedSystemSolution(solution.uniquename)) {
+      return false;
+    }
+
+    return !this.isLikelySystemSolution(solution);
+  }
+
+  private isReservedSystemSolution(uniqueName: string): boolean {
     const reservedSystemSolutions = new Set(['active', 'default']);
-    return !reservedSystemSolutions.has(solution.uniquename.toLowerCase());
+    return reservedSystemSolutions.has(uniqueName.toLowerCase());
+  }
+
+  private isLikelySystemSolution(solution: Solution): boolean {
+    const normalizedUniqueName = solution.uniquename.toLowerCase();
+    const normalizedFriendlyName = solution.friendlyname.toLowerCase();
+
+    const systemUniqueNamePrefixes = [
+      'msdyn_',
+      'mspp_',
+      'adx_',
+      'microsoft',
+      'dynamics',
+      'crm',
+      'sales_',
+      'marketing_',
+    ];
+
+    const systemFriendlyNamePrefixes = [
+      'dynamics ',
+      'microsoft ',
+      'default ',
+      'active ',
+    ];
+
+    return (
+      systemUniqueNamePrefixes.some(prefix => normalizedUniqueName.startsWith(prefix)) ||
+      systemFriendlyNamePrefixes.some(prefix => normalizedFriendlyName.startsWith(prefix))
+    );
   }
 
   private escapeHtml(value: string): string {
@@ -743,7 +779,7 @@ export class LevelUpExtension {
     });
 
     const rawSolutions = Array.isArray(response?.value) ? response.value : [];
-    return rawSolutions
+    const mappedSolutions = rawSolutions
       .map((solution: Record<string, unknown>) => ({
         uniquename: (solution.uniquename as string) || '',
         friendlyname:
@@ -755,8 +791,26 @@ export class LevelUpExtension {
         ismanaged: Boolean(solution.ismanaged),
         isvisible: solution.isvisible as boolean,
       }))
-      .filter(solution => this.canBePreferredSolution(solution))
       .sort((left, right) => left.friendlyname.localeCompare(right.friendlyname));
+
+    const strictCandidates = mappedSolutions.filter(
+      solution => this.canBePreferredSolution(solution) && !solution.ismanaged
+    );
+    if (strictCandidates.length > 0) {
+      return strictCandidates;
+    }
+
+    const relaxedCandidates = mappedSolutions.filter(solution => this.canBePreferredSolution(solution));
+    if (relaxedCandidates.length > 0) {
+      return relaxedCandidates;
+    }
+
+    // Safety fallback: still exclude the hard system defaults, even if no better options exist.
+    return mappedSolutions.filter(
+      solution =>
+        Boolean(solution.solutionid && solution.uniquename) &&
+        !this.isReservedSystemSolution(solution.uniquename)
+    );
   }
 
   public async selectDefaultSolution(): Promise<string> {

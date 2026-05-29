@@ -235,6 +235,12 @@ class ContentScript {
     });
   }
 
+  private async wait(ms: number): Promise<void> {
+    await new Promise(resolve => {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
   private setupMessageListener(): void {
     // Listen for messages from the extension - unified message handler
     chrome.runtime.onMessage.addListener(
@@ -277,7 +283,16 @@ class ContentScript {
           response.error
         );
         this.injectScript();
-        response = await this.forwardActionToInjectedScript(message, 3500);
+
+        const retryDelaysMs = [350, 900, 1600];
+        for (let attempt = 0; attempt < retryDelaysMs.length; attempt++) {
+          await this.wait(retryDelaysMs[attempt]);
+          response = await this.forwardActionToInjectedScript(message, 3500);
+
+          if (!this.shouldRetryAfterReinject(response)) {
+            break;
+          }
+        }
       }
 
       sendResponse(response);
