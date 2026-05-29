@@ -126,6 +126,19 @@ export interface EnvironmentInfo {
     webResourceUrl: string;
 }
 
+export interface CurrentUserInfo {
+    userId: string;
+    userName: string;
+    languageId?: number;
+    securityRoles?: string[];
+    defaultDashboardId?: string;
+    roleNames: string[];
+    isSystemAdministrator: boolean;
+    isSystemCustomizer: boolean;
+    hasAdminOrCustomizerRole: boolean;
+    hasCustomizationAccess: boolean;
+}
+
 export interface ImpersonationUser {
     systemuserid: string;
     azureactivedirectoryobjectid: string;

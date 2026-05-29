@@ -18,10 +18,49 @@ interface SearchResult {
   totalResultsMessage?: string;
 }
 
+interface UserPermissionProfile {
+  roleNames: string[];
+  isSystemAdministrator: boolean;
+  isSystemCustomizer: boolean;
+  hasAdminOrCustomizerRole: boolean;
+  hasCustomizationAccess: boolean;
+}
+
 // Global variable to store current impersonation
 let currentImpersonationUser: ImpersonationUser | null = null;
 
 export class AdminActions {
+  private static getCurrentUserPermissionProfile(): UserPermissionProfile {
+    const globalContext = Xrm.Utility.getGlobalContext();
+    const userRoles = globalContext.userSettings.roles as Xrm.Collection.ItemCollection<Xrm.LookupValue>;
+
+    const roleNames: string[] = [];
+
+    if (userRoles && userRoles.getLength() > 0) {
+      for (let index = 0; index < userRoles.getLength(); index++) {
+        const role = userRoles.get(index);
+        const roleName = role.name?.trim();
+
+        if (roleName) {
+          roleNames.push(roleName);
+        }
+      }
+    }
+
+    const normalizedRoles = roleNames.map(roleName => roleName.toLowerCase());
+    const isSystemAdministrator = normalizedRoles.includes('system administrator');
+    const isSystemCustomizer = normalizedRoles.includes('system customizer');
+    const hasAdminOrCustomizerRole = isSystemAdministrator || isSystemCustomizer;
+
+    return {
+      roleNames,
+      isSystemAdministrator,
+      isSystemCustomizer,
+      hasAdminOrCustomizerRole,
+      hasCustomizationAccess: hasAdminOrCustomizerRole,
+    };
+  }
+
   /**
    * Get environment information
    */
@@ -59,6 +98,7 @@ export class AdminActions {
     try {
       const globalContext = Xrm.Utility.getGlobalContext();
       const userSettings = globalContext.userSettings;
+      const permissionProfile = this.getCurrentUserPermissionProfile();
 
       const userInfo = {
         userId: userSettings.userId,
@@ -66,6 +106,11 @@ export class AdminActions {
         languageId: userSettings.languageId,
         securityRoles: userSettings.securityRoles,
         defaultDashboardId: userSettings.defaultDashboardId,
+        roleNames: permissionProfile.roleNames,
+        isSystemAdministrator: permissionProfile.isSystemAdministrator,
+        isSystemCustomizer: permissionProfile.isSystemCustomizer,
+        hasAdminOrCustomizerRole: permissionProfile.hasAdminOrCustomizerRole,
+        hasCustomizationAccess: permissionProfile.hasCustomizationAccess,
       };
 
       return userInfo;
