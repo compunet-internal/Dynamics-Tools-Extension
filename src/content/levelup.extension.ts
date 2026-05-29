@@ -154,19 +154,19 @@ export class LevelUpExtension {
         const cached = this.getCachedEntityMetadata();
         if (!cached) {
           // eslint-disable-next-line no-console
-          console.log('Level Up: No cached entity metadata found, populating cache...');
+          console.log('CompuNet Dynamics Tools: No cached entity metadata found, populating cache...');
           await this.getEntityMetadata();
         } else {
           // eslint-disable-next-line no-console
-          console.log('Level Up: Using existing cached entity metadata');
+          console.log('CompuNet Dynamics Tools: Using existing cached entity metadata');
         }
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.warn('Level Up: Failed to populate entity metadata cache on init:', error);
+        console.warn('CompuNet Dynamics Tools: Failed to populate entity metadata cache on init:', error);
       }
 
       // eslint-disable-next-line no-console
-      console.log('Level Up: Dynamics 365 Client API integration ready');
+      console.log('CompuNet Dynamics Tools: Dynamics 365 Client API integration ready');
     });
   }
 
@@ -185,9 +185,9 @@ export class LevelUpExtension {
       // Use hostname as part of cache key for environment isolation
       this.cacheKey = `levelup_entity_metadata_${hostname}`;
 
-      console.log(`Level Up: Cache key set for environment: ${hostname}`);
+      console.log(`CompuNet Dynamics Tools: Cache key set for environment: ${hostname}`);
     } catch (error) {
-      console.warn('Level Up: Failed to get environment URL, using default cache key:', error);
+      console.warn('CompuNet Dynamics Tools: Failed to get environment URL, using default cache key:', error);
       this.cacheKey = 'levelup_entity_metadata_cache';
     }
   }
@@ -267,7 +267,7 @@ export class LevelUpExtension {
         return parsed;
       }
     } catch (error) {
-      console.warn('Level Up: Failed to parse cached entity metadata:', error);
+      console.warn('CompuNet Dynamics Tools: Failed to parse cached entity metadata:', error);
       localStorage.removeItem(this.cacheKey);
     }
     return null;
@@ -284,7 +284,7 @@ export class LevelUpExtension {
       };
       localStorage.setItem(this.cacheKey, JSON.stringify(cacheData));
     } catch (error) {
-      console.warn('Level Up: Failed to cache entity metadata:', error);
+      console.warn('CompuNet Dynamics Tools: Failed to cache entity metadata:', error);
     }
   }
 
@@ -315,11 +315,11 @@ export class LevelUpExtension {
       const now = Date.now();
 
       if (cached && now - cached.timestamp < this.CACHE_DURATION_MS) {
-        console.log('Level Up: Using cached entity metadata from localStorage');
+        console.log('CompuNet Dynamics Tools: Using cached entity metadata from localStorage');
         return cached.entities;
       }
 
-      console.log('Level Up: Fetching fresh entity metadata from API');
+      console.log('CompuNet Dynamics Tools: Fetching fresh entity metadata from API');
 
       // Use the existing WebApiClient to get entity metadata
       const webApiClient = WebApiClient.getInstance();
@@ -343,7 +343,7 @@ export class LevelUpExtension {
       // Cache the results in localStorage
       this.setCachedEntityMetadata(entities);
 
-      console.log(`Level Up: Cached ${entities.length} entities in localStorage`);
+      console.log(`CompuNet Dynamics Tools: Cached ${entities.length} entities in localStorage`);
       return entities;
     } catch (error) {
       console.error('Error fetching entity metadata:', error);
@@ -351,7 +351,7 @@ export class LevelUpExtension {
       // If we have cached data, return it even if it's expired
       const cached = this.getCachedEntityMetadata();
       if (cached) {
-        console.log('Level Up: API failed, using expired cached entity metadata from localStorage');
+        console.log('CompuNet Dynamics Tools: API failed, using expired cached entity metadata from localStorage');
         return cached.entities;
       }
     }
@@ -816,7 +816,7 @@ export class LevelUpExtension {
           ">
             <div>
               <div style="font-size: 18px; font-weight: 600;">Default Solution</div>
-              <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">Choose the solution Level Up should use in this environment.</div>
+              <div style="font-size: 12px; opacity: 0.9; margin-top: 4px;">Choose the solution CompuNet Dynamics Tools should use in this environment.</div>
             </div>
             <button class="levelup-dialog-close" aria-label="Close dialog" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;line-height:1;">×</button>
           </div>

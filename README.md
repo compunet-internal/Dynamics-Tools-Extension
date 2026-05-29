@@ -1,6 +1,6 @@
-# Level Up for Dynamics 365/Power Apps
+# CompuNet Dynamics Tools
 
-Level Up is a browser extension that helps Dynamics 365, Power Apps, and web teams work more efficiently. It provides quick admin actions, custom command execution, UI utilities, and diagnostic tools in a compact sidebar or popup.
+CompuNet Dynamics Tools is a browser extension that helps Dynamics 365, Power Apps, and web teams work more efficiently. It provides quick admin actions, custom command execution, UI utilities, and diagnostic tools in a compact sidebar or popup.
 
 # Extension Modes
 

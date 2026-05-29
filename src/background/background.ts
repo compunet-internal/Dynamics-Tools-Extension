@@ -193,19 +193,19 @@ console.log(
 );
 
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('Level Up for Dynamics 365 extension installed');
+  console.log('CompuNet Dynamics Tools extension installed');
   await impersonationService.initializeOnStartup();
 });
 
 // Also initialize on startup
 chrome.runtime.onStartup.addListener(async () => {
-  console.log('Level Up for Dynamics 365 extension startup');
+  console.log('CompuNet Dynamics Tools extension startup');
   await impersonationService.initializeOnStartup();
 });
 
 // Initialize immediately when service worker becomes active
 (async () => {
-  console.log('Level Up for Dynamics 365 service worker active');
+  console.log('CompuNet Dynamics Tools service worker active');
   await impersonationService.initializeOnStartup();
 })();
 
@@ -229,7 +229,7 @@ try {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'levelup-open',
-      title: 'Open Level Up Sidebar',
+      title: 'Open CompuNet Dynamics Tools Sidebar',
       contexts: ['page'],
     });
   });

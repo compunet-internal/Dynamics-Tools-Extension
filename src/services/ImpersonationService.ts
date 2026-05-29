@@ -379,14 +379,14 @@ export class ImpersonationService {
       // Clear both tab-scoped and global badges to ensure visibility cleared
       try {
         chrome.action.setBadgeText({ text: '', tabId });
-        chrome.action.setTitle({ title: 'Level Up', tabId });
+        chrome.action.setTitle({ title: 'CompuNet Dynamics Tools', tabId });
       } catch (perTabErr) {
         // ignore
       }
 
       try {
         chrome.action.setBadgeText({ text: '' });
-        chrome.action.setTitle({ title: 'Level Up' });
+        chrome.action.setTitle({ title: 'CompuNet Dynamics Tools' });
       } catch (globalErr) {
         // ignore
       }

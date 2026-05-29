@@ -323,7 +323,7 @@ export const navigationActions: ActionConfig[] = [
     id: 'navigation:select-default-solution',
     label: 'Default Solution',
     icon: LayersIcon,
-    tooltip: 'Choose the default solution Level Up should use in this environment',
+    tooltip: 'Choose the default solution CompuNet Dynamics Tools should use in this environment',
     category: 'common',
     shortLabel: 'Default Sol',
     shortIcon: '🧩',

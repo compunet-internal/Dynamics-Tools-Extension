@@ -297,7 +297,7 @@ const InformationDialog: React.FC<InformationDialogProps> = ({ open, onClose }) 
           <Box sx={{ px: 3 }}>
             <Box sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant='h5' sx={{ fontWeight: 'bold', mb: 1.5 }}>
-                Level Up for Dynamics 365/Power Apps
+                CompuNet Dynamics Tools
               </Typography>
               <Chip
                 label={`v${releaseNotesData.version}`}
@@ -344,7 +344,7 @@ const InformationDialog: React.FC<InformationDialogProps> = ({ open, onClose }) 
               </Button>
 
               <Typography variant='body1' sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                Thank you for using Level Up!
+                Thank you for using CompuNet Dynamics Tools!
               </Typography>
             </Box>
           </Box>

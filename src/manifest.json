@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Level Up for Dynamics 365/Power Apps",
+  "name": "CompuNet Dynamics Tools",
   "version": "4.1.3",
   "description": "Quickly perform advanced/hidden actions in Dynamics 365/Power Apps, without bookmarklets.",
   "permissions": [
@@ -34,7 +34,7 @@
     "default_path": "sidebar.html"
   },
   "action": {
-    "default_title": "Level Up for Dynamics 365/Power Apps",
+    "default_title": "CompuNet Dynamics Tools",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

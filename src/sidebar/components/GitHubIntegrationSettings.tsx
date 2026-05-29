@@ -147,7 +147,7 @@ const GitHubIntegrationSettings: React.FC<GitHubIntegrationSettingsProps> = ({ o
 
         <Alert severity='info' sx={{ mb: 2 }}>
           <Typography variant='body2'>
-            Configure GitHub integration to share your custom commands with the Level Up community.
+            Configure GitHub integration to share your custom commands with the CompuNet Dynamics Tools community.
             Commands are shared by opening a pre-filled GitHub Issue form in your browser - no
             authentication required!
           </Typography>
