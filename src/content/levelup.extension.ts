@@ -681,7 +681,9 @@ export class LevelUpExtension {
       return {
         uniquename: solution.uniquename as string,
         friendlyname:
-          (solution.friendlyname as string) || (solution.uniquename as string) || 'Unnamed Solution',
+          (solution.friendlyname as string) ||
+          (solution.uniquename as string) ||
+          'Unnamed Solution',
         solutionid: solution.solutionid as string,
         version: (solution.version as string) || '',
         ismanaged: Boolean(solution.ismanaged),
@@ -703,7 +705,9 @@ export class LevelUpExtension {
       .map((solution: Record<string, unknown>) => ({
         uniquename: (solution.uniquename as string) || '',
         friendlyname:
-          (solution.friendlyname as string) || (solution.uniquename as string) || 'Unnamed Solution',
+          (solution.friendlyname as string) ||
+          (solution.uniquename as string) ||
+          'Unnamed Solution',
         solutionid: (solution.solutionid as string) || '',
         version: (solution.version as string) || '',
         ismanaged: Boolean(solution.ismanaged),
@@ -774,9 +778,7 @@ export class LevelUpExtension {
         const isSelected = normalizedSolutionId === this.normalizeSolutionId(selectedSolutionId);
         const solutionType = solution.ismanaged ? 'Managed' : 'Unmanaged';
         const preferredMarker =
-          currentSolutionId && normalizedSolutionId === currentSolutionId
-            ? ' (current)'
-            : '';
+          currentSolutionId && normalizedSolutionId === currentSolutionId ? ' (current)' : '';
 
         return `<option value="${this.escapeHtml(normalizedSolutionId)}"${isSelected ? ' selected' : ''}>${this.escapeHtml(solution.friendlyname)} [${solutionType}]${preferredMarker}</option>`;
       })
@@ -837,7 +839,9 @@ export class LevelUpExtension {
     document.body.appendChild(dialogElement.firstElementChild!);
 
     const backdrop = document.getElementById(`${dialogId}-backdrop`);
-    const closeButton = backdrop?.querySelector('.levelup-dialog-close') as HTMLButtonElement | null;
+    const closeButton = backdrop?.querySelector(
+      '.levelup-dialog-close'
+    ) as HTMLButtonElement | null;
     const selectElement = document.getElementById(`${dialogId}-select`) as HTMLSelectElement | null;
     const detailsElement = document.getElementById(`${dialogId}-details`) as HTMLDivElement | null;
     const clearButton = document.getElementById(`${dialogId}-clear`) as HTMLButtonElement | null;

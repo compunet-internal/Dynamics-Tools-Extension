@@ -81,7 +81,9 @@ const App: React.FC = () => {
 
   const refreshCurrentSolutionTooltip = async () => {
     if (!isConnected) {
-      setCurrentSolutionTooltip('Choose the default solution Level Up should use in this environment');
+      setCurrentSolutionTooltip(
+        'Choose the default solution Level Up should use in this environment'
+      );
       return;
     }
 
@@ -102,7 +104,9 @@ const App: React.FC = () => {
 
       setCurrentSolutionTooltip(`Current: ${solutionInfo.friendlyname} (${sourceLabel})`);
     } catch {
-      setCurrentSolutionTooltip('Choose the default solution Level Up should use in this environment');
+      setCurrentSolutionTooltip(
+        'Choose the default solution Level Up should use in this environment'
+      );
     }
   };
 
