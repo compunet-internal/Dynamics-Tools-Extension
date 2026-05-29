@@ -84,6 +84,7 @@
     "puppeteer": "^24.17.0",
     "puppeteer-core": "^24.17.0",
     "rimraf": "^5.0.5",
+    "terser": "^5.48.0",
     "ts-jest": "^29.1.2",
     "typescript": "^5.3.3",
     "vite": "^6.3.6"

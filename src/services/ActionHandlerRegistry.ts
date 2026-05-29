@@ -64,6 +64,7 @@ export class ActionHandlerRegistry {
       { action: 'form:open-web-api', contentScriptMethod: 'openWebApiRecord' },
       { action: 'form:all-fields', contentScriptMethod: 'showAllFields' },
       { action: 'form:open-editor', contentScriptMethod: 'openFormEditor' },
+      { action: 'form:open-table-editor', contentScriptMethod: 'openTableEditor' },
       { action: 'form:table-processes', contentScriptMethod: 'showTableProcesses' },
     ];
 

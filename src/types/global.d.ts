@@ -32,6 +32,7 @@ export type FormActionName =
     | 'forms-monitor'
     | 'ribbon-debugger'
     | 'open-editor'
+    | 'open-table-editor'
     | 'table-processes'
 
 export type NavigationActionName =

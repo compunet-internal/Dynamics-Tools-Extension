@@ -169,6 +169,15 @@ export const formActions: ActionConfig[] = [
     shortIcon: '✏️',
   },
   {
+    id: 'form:open-table-editor',
+    label: 'Open Table Editor',
+    icon: TableChartIcon,
+    tooltip: 'Open the current table/entity in Power Apps Maker portal',
+    category: 'advanced',
+    shortLabel: 'Table Edit',
+    shortIcon: '🗂️',
+  },
+  {
     id: 'form:table-processes',
     label: 'Table Processes',
     icon: WorkflowIcon,

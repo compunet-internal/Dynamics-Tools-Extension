@@ -343,16 +343,38 @@ export class FormActions {
   /**
    * Open current record in Web API
    */
-  openWebApiRecord(): string {
+  async openWebApiRecord(): Promise<string> {
     const xrm = this.getXrm();
     const entityName = xrm.Page.data.entity.getEntityName();
     const recordId = xrm.Page.data.entity.getId().replace(/[{}]/g, '');
     const orgUrl = DynamicsUtils.getOrganizationUrl();
+    const collectionName = await this.resolveEntityCollectionName(entityName);
 
-    const webApiUrl = `${orgUrl}/api/data/v9.0/${DynamicsUtils.getEntityCollectionName(entityName)}(${recordId})`;
+    const webApiUrl = `${orgUrl}/api/data/v9.0/${collectionName}(${recordId})`;
     Xrm.Navigation.openUrl(webApiUrl);
 
     return 'Web API record opened in new tab';
+  }
+
+  /**
+   * Resolve entity set (collection) name for Web API calls, including irregular plurals
+   */
+  private async resolveEntityCollectionName(entityLogicalName: string): Promise<string> {
+    try {
+      const response = await WebApiClient.getInstance().retrieveMultiple('EntityDefinitions', {
+        select: ['LogicalCollectionName'],
+        filter: `LogicalName eq '${entityLogicalName}'`,
+      });
+
+      const logicalCollectionName = response?.value?.[0]?.LogicalCollectionName;
+      if (logicalCollectionName) {
+        return logicalCollectionName;
+      }
+    } catch {
+      // Fall back to cached/heuristic logic if metadata lookup fails
+    }
+
+    return DynamicsUtils.getEntityCollectionName(entityLogicalName);
   }
 
   /**
@@ -500,7 +522,7 @@ export class FormActions {
     try {
       const entityLogicalName = xrm.Page.data.entity.getEntityName();
       const recordId = xrm.Page.data.entity.getId().replace(/[{}]/g, '');
-      const collection = DynamicsUtils.getEntityCollectionName(entityLogicalName);
+      const collection = await this.resolveEntityCollectionName(entityLogicalName);
       const webApiClient = WebApiClient.getInstance();
 
       // Retrieve full record with annotations to get formatted values
@@ -618,6 +640,45 @@ export class FormActions {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       DynamicsUtils.showToast(`Failed to open form editor: ${errorMessage}`, 'error');
       throw new Error(`Failed to open form editor: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Open the Power Apps Maker table/entity editor for the current record type
+   */
+  async openTableEditor(): Promise<string> {
+    const xrm = this.getXrm();
+
+    try {
+      const entityName = xrm.Page.data.entity.getEntityName();
+      const globalContext = Xrm.Utility.getGlobalContext();
+      const orgSettings = globalContext.organizationSettings as Xrm.OrganizationSettings & {
+        environmentId?: string;
+      };
+      const environmentId = orgSettings.bapEnvironmentId || orgSettings.environmentId;
+
+      if (!environmentId) {
+        throw new Error('Could not read Environment ID from this client context.');
+      }
+
+      const response = await WebApiClient.getInstance().retrieveMultiple('EntityDefinitions', {
+        select: ['MetadataId'],
+        filter: `LogicalName eq '${entityName}'`,
+      });
+
+      const entityMetadataId = response?.value?.[0]?.MetadataId;
+      if (!entityMetadataId) {
+        throw new Error('Entity metadata not found.');
+      }
+
+      const makerUrl = `https://make.powerapps.com/environments/${environmentId}/entities/${entityMetadataId}`;
+      Xrm.Navigation.openUrl(makerUrl);
+
+      return `Table editor opened for ${entityName}`;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      DynamicsUtils.showToast(`Failed to open table editor: ${errorMessage}`, 'error');
+      throw new Error(`Failed to open table editor: ${errorMessage}`);
     }
   }
 

@@ -72,6 +72,7 @@ export class LevelUpExtension {
       { actionName: 'refresh-autosave-off', method: 'refreshWithoutSave' },
       { actionName: 'all-fields', method: 'showAllFields' },
       { actionName: 'open-editor', method: 'openFormEditor' },
+      { actionName: 'open-table-editor', method: 'openTableEditor' },
       { actionName: 'table-processes', method: 'showTableProcesses' },
     ];
   }
