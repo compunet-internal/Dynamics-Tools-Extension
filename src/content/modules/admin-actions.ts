@@ -32,7 +32,8 @@ let currentImpersonationUser: ImpersonationUser | null = null;
 export class AdminActions {
   private static getCurrentUserPermissionProfile(): UserPermissionProfile {
     const globalContext = Xrm.Utility.getGlobalContext();
-    const userRoles = globalContext.userSettings.roles as Xrm.Collection.ItemCollection<Xrm.LookupValue>;
+    const userRoles = globalContext.userSettings
+      .roles as Xrm.Collection.ItemCollection<Xrm.LookupValue>;
 
     const roleNames: string[] = [];
 
