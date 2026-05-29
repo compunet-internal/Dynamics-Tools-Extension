@@ -161,6 +161,7 @@ class ContentScript {
         normalizedError.indexOf('is not a function') !== -1) ||
       (normalizedError.indexOf('method') !== -1 &&
         normalizedError.indexOf('not found on target object') !== -1) ||
+      normalizedError.indexOf('unknown action') !== -1 ||
       normalizedError.indexOf('no response from injected script') !== -1
     );
   }
@@ -171,6 +172,17 @@ class ContentScript {
   ): Promise<DynamicsResponse> {
     return await new Promise<DynamicsResponse>(resolve => {
       const requestId = Date.now().toString();
+      let pendingError: DynamicsResponse | null = null;
+      let settleErrorTimer: number | null = null;
+
+      const finish = (response: DynamicsResponse) => {
+        window.clearTimeout(timeoutId);
+        if (settleErrorTimer !== null) {
+          window.clearTimeout(settleErrorTimer);
+        }
+        window.removeEventListener('message', responseListener);
+        resolve(response);
+      };
 
       const responseListener = (event: MessageEvent) => {
         if (event.source !== window) {
@@ -178,15 +190,28 @@ class ContentScript {
         }
 
         if (event.data.type === 'LEVELUP_RESPONSE' && event.data.requestId === requestId) {
-          window.clearTimeout(timeoutId);
-          window.removeEventListener('message', responseListener);
-          resolve(event.data as DynamicsResponse);
+          const response = event.data as DynamicsResponse;
+
+          // In case multiple injected listeners respond, always prefer a successful response.
+          if (response.success) {
+            finish(response);
+            return;
+          }
+
+          pendingError = response;
+          if (settleErrorTimer !== null) {
+            window.clearTimeout(settleErrorTimer);
+          }
+
+          // Give parallel listeners a short chance to return success before failing.
+          settleErrorTimer = window.setTimeout(() => {
+            finish(pendingError || { success: false, error: 'Unknown injected script error' });
+          }, 120);
         }
       };
 
       const timeoutId = window.setTimeout(() => {
-        window.removeEventListener('message', responseListener);
-        resolve({ success: false, error: 'No response from injected script' });
+        finish(pendingError || { success: false, error: 'No response from injected script' });
       }, timeoutMs);
 
       window.addEventListener('message', responseListener);
