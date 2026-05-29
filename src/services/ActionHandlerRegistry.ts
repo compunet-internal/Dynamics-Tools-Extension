@@ -111,6 +111,18 @@ export class ActionHandlerRegistry {
         action: 'navigation:get-current-solution',
         contentScriptMethod: 'getCurrentSolutionInfo',
       },
+      {
+        action: 'navigation:list-solutions',
+        contentScriptMethod: 'listSolutionsForPicker',
+      },
+      {
+        action: 'navigation:set-preferred-solution',
+        contentScriptMethod: 'setPreferredSolution',
+        dataExtractor: data => {
+          const solutionData = data as { solutionId?: string };
+          return { solutionId: solutionData?.solutionId };
+        },
+      },
       { action: 'navigation:open-processes', contentScriptMethod: 'openProcesses' },
       { action: 'navigation:open-mailboxes', contentScriptMethod: 'openMailboxes' },
       { action: 'navigation:open-main', contentScriptMethod: 'openMain' },

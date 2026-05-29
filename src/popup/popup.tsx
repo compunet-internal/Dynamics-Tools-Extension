@@ -1,11 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Box, Typography, Link, Skeleton, Alert, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Link,
+  Alert,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+} from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
 import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm } from '#utils/dynamicsDetection';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { ThemeProvider } from '#contexts/ThemeContext';
 import { formActions, navigationActions, ActionConfig } from '#config/actions';
+
+interface SolutionOption {
+  solutionid: string;
+  friendlyname: string;
+  uniquename: string;
+  ismanaged: boolean;
+}
 
 const PopupApp: React.FC = () => {
   const [extensionConfig, setExtensionConfig] = useState<ExtensionConfig>(
@@ -18,6 +36,9 @@ const PopupApp: React.FC = () => {
     message: string;
     severity: 'success' | 'info' | 'warning' | 'error';
   }>(null);
+  const [solutions, setSolutions] = useState<SolutionOption[]>([]);
+  const [selectedSolutionId, setSelectedSolutionId] = useState('');
+  const [isLoadingSolutions, setIsLoadingSolutions] = useState(false);
 
   // Detect if running in Firefox
   const isFirefox =
@@ -51,6 +72,103 @@ const PopupApp: React.FC = () => {
     window.setTimeout(() => setInlineToast(null), 4000);
   };
 
+  const sendActionToActiveTab = async (action: DynamicsAction, data?: unknown) => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) {
+      throw new Error('No active tab found');
+    }
+
+    return await new Promise<{ success: boolean; data?: unknown; error?: string }>(resolve => {
+      chrome.tabs.sendMessage(
+        tab.id!,
+        {
+          type: 'LEVELUP_REQUEST',
+          action,
+          data,
+          requestId: Date.now().toString(),
+        },
+        response => {
+          if (chrome.runtime.lastError) {
+            resolve({ success: false, error: chrome.runtime.lastError.message });
+            return;
+          }
+
+          resolve(response || { success: false, error: 'No response received' });
+        }
+      );
+    });
+  };
+
+  const refreshSolutionDropdown = async () => {
+    if (!isConnected) {
+      setSolutions([]);
+      setSelectedSolutionId('');
+      return;
+    }
+
+    setIsLoadingSolutions(true);
+    try {
+      const [listResponse, currentResponse] = await Promise.all([
+        sendActionToActiveTab('navigation:list-solutions'),
+        sendActionToActiveTab('navigation:get-current-solution'),
+      ]);
+
+      if (!listResponse.success) {
+        throw new Error(listResponse.error || 'Failed to load solutions');
+      }
+
+      const loadedSolutions = Array.isArray(listResponse.data)
+        ? (listResponse.data as SolutionOption[])
+        : [];
+
+      setSolutions(loadedSolutions);
+
+      if (currentResponse.success && currentResponse.data) {
+        const current = currentResponse.data as { solutionId?: string };
+        setSelectedSolutionId(current.solutionId || loadedSolutions[0]?.solutionid || '');
+      } else {
+        setSelectedSolutionId(loadedSolutions[0]?.solutionid || '');
+      }
+    } catch (error) {
+      setSolutions([]);
+      setSelectedSolutionId('');
+      showInlineToast(
+        `Failed to load default solution options: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'warning'
+      );
+    } finally {
+      setIsLoadingSolutions(false);
+    }
+  };
+
+  const handleDefaultSolutionChange = async (event: SelectChangeEvent<string>) => {
+    const nextSolutionId = event.target.value;
+    if (!nextSolutionId) {
+      return;
+    }
+
+    setSelectedSolutionId(nextSolutionId);
+
+    try {
+      const response = await sendActionToActiveTab('navigation:set-preferred-solution', {
+        solutionId: nextSolutionId,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to set preferred solution');
+      }
+
+      showInlineToast('Default solution updated', 'success');
+      await refreshSolutionDropdown();
+    } catch (error) {
+      showInlineToast(
+        `Failed to update preferred solution: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error'
+      );
+      await refreshSolutionDropdown();
+    }
+  };
+
   const handleActionClick = async (actionId: DynamicsAction) => {
     try {
       console.log('Executing action:', actionId);
@@ -80,45 +198,15 @@ const PopupApp: React.FC = () => {
         actionData = { entityName: entityName.trim().toLowerCase() };
       }
 
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) {
-        console.error('No active tab found');
-        return;
-      }
-
-      console.log('Sending message to tab:', tab.id);
-
-      // Send message in the correct format that content script expects
-      chrome.tabs.sendMessage(
-        tab.id,
-        {
-          type: 'LEVELUP_REQUEST',
-          action: actionId,
-          data: actionData,
-          requestId: Date.now().toString(),
-        },
-        response => {
-          if (chrome.runtime.lastError) {
-            console.error('Message send error:', chrome.runtime.lastError.message);
-          } else {
-            console.log('Action response:', response);
-            if (response?.success) {
-              console.log(`✅ Action executed successfully: ${actionId}`);
-            } else {
-              console.error('❌ Action failed:', response?.error || 'Unknown error');
-              // Show inline toast for the common form-only error so the popup UX is clear
-              if (
-                response?.error &&
-                response.error.indexOf('Form actions can only be used') !== -1
-              ) {
-                showInlineToast(response.error, 'error');
-              }
-            }
-          }
+      const response = await sendActionToActiveTab(actionId, actionData);
+      if (response?.success) {
+        console.log(`✅ Action executed successfully: ${actionId}`);
+      } else {
+        console.error('❌ Action failed:', response?.error || 'Unknown error');
+        if (response?.error && response.error.indexOf('Form actions can only be used') !== -1) {
+          showInlineToast(response.error, 'error');
         }
-      );
-
-      console.log('Action message sent, keeping popup open');
+      }
     } catch (error) {
       console.error('Error executing action:', error);
     }
@@ -143,6 +231,12 @@ const PopupApp: React.FC = () => {
       console.error('Error switching display mode and opening sidebar:', error);
     }
   };
+
+  useEffect(() => {
+    if (isConnected && extensionConfig.showNavigationSection) {
+      void refreshSolutionDropdown();
+    }
+  }, [isConnected, extensionConfig.showNavigationSection]);
 
   // removed skeleton and early not-connected returns — always render full UI
 
@@ -342,6 +436,39 @@ const PopupApp: React.FC = () => {
             </Typography>
             <Box
               sx={{
+                mb: 0.6,
+                p: 0.5,
+                backgroundColor: theme =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.background.paper
+                    : 'rgba(255,255,255,0.85)',
+                borderRadius: '6px',
+                border: theme => `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <FormControl fullWidth size='small' disabled={isLoadingSolutions || !isConnected}>
+                <InputLabel id='default-solution-label'>Default Solution</InputLabel>
+                <Select
+                  labelId='default-solution-label'
+                  value={selectedSolutionId}
+                  label='Default Solution'
+                  onChange={handleDefaultSolutionChange}
+                >
+                  {solutions.length === 0 && (
+                    <MenuItem value='' disabled>
+                      {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
+                    </MenuItem>
+                  )}
+                  {solutions.map(solution => (
+                    <MenuItem key={solution.solutionid} value={solution.solutionid}>
+                      {solution.friendlyname}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box
+              sx={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 0.5,
@@ -355,7 +482,9 @@ const PopupApp: React.FC = () => {
                 alignItems: 'stretch',
               }}
             >
-              {navigationActions.map((action: ActionConfig) => {
+              {navigationActions
+                .filter(action => action.id !== 'navigation:select-default-solution')
+                .map((action: ActionConfig) => {
                 const label = action.label || '';
                 const lowered = label.toLowerCase();
                 const short =
@@ -417,7 +546,7 @@ const PopupApp: React.FC = () => {
                     <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
                   </Link>
                 );
-              })}
+                })}
             </Box>
           </Box>
         )}

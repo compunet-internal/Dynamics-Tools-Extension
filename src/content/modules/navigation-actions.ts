@@ -168,6 +168,20 @@ export class NavigationActions {
   }
 
   /**
+   * List solutions available for inline picker rendering
+   */
+  static async listSolutionsForPicker(): Promise<unknown> {
+    return await window.levelUpExtension.listSolutionsForPicker();
+  }
+
+  /**
+   * Set preferred solution for current user/environment
+   */
+  static async setPreferredSolution(data: { solutionId: string }): Promise<unknown> {
+    return await window.levelUpExtension.setPreferredSolution(data);
+  }
+
+  /**
    * Open Processes
    */
   static openProcesses(): string {

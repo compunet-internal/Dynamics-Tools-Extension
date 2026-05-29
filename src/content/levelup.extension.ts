@@ -109,6 +109,13 @@ export class LevelUpExtension {
       { actionName: 'open-system-jobs', method: 'openSystemJobs' },
       { actionName: 'open-solutions', method: 'openSolutions' },
       { actionName: 'select-default-solution', method: 'selectDefaultSolution' },
+      { actionName: 'get-current-solution', method: 'getCurrentSolutionInfo' },
+      { actionName: 'list-solutions', method: 'listSolutionsForPicker' },
+      {
+        actionName: 'set-preferred-solution',
+        method: 'setPreferredSolution',
+        dataTransformer: data => data as { solutionId: string },
+      },
       { actionName: 'open-processes', method: 'openProcesses' },
       { actionName: 'open-mailboxes', method: 'openMailboxes' },
       { actionName: 'open-main', method: 'openMain' },
@@ -768,6 +775,24 @@ export class LevelUpExtension {
     }
 
     return null;
+  }
+
+  public async listSolutionsForPicker(): Promise<Solution[]> {
+    return await this.getSolutionsForPicker();
+  }
+
+  public async setPreferredSolution(data: { solutionId: string }): Promise<string> {
+    if (!data?.solutionId) {
+      throw new Error('solutionId is required');
+    }
+
+    const selectedSolution = await this.getSolutionById(data.solutionId);
+    if (!selectedSolution) {
+      throw new Error('Selected solution was not found');
+    }
+
+    await this.setPreferredSolutionOnServer(selectedSolution.solutionid);
+    return `Default solution set to ${selectedSolution.friendlyname} for this environment.`;
   }
 
   private renderDefaultSolutionPicker(

@@ -1,12 +1,16 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default defineConfig({
   testDir: './tests/e2e',
-  globalSetup: require.resolve('./tests/global-setup'),
+  globalSetup: path.resolve(__dirname, './tests/global-setup.ts'),
   use: {
     storageState: path.resolve(__dirname, './tests/.auth/user.json'),
     headless: false,
