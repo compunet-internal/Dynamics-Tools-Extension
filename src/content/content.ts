@@ -143,11 +143,63 @@ class ContentScript {
 
     // Ensure DOM is ready before injecting
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', injectWhenReady);
+      document.addEventListener('DOMContentLoaded', injectWhenReady, { once: true });
     } else {
       // If DOM is already ready, inject immediately
       injectWhenReady();
     }
+  }
+
+  private shouldRetryAfterReinject(response: DynamicsResponse): boolean {
+    if (response.success || !response.error) {
+      return false;
+    }
+
+    const normalizedError = response.error.toLowerCase();
+    return (
+      (normalizedError.indexOf('window.levelupextension') !== -1 &&
+        normalizedError.indexOf('is not a function') !== -1) ||
+      (normalizedError.indexOf('method') !== -1 &&
+        normalizedError.indexOf('not found on target object') !== -1) ||
+      normalizedError.indexOf('no response from injected script') !== -1
+    );
+  }
+
+  private async forwardActionToInjectedScript(
+    message: ActionMessage,
+    timeoutMs: number = 2500
+  ): Promise<DynamicsResponse> {
+    return await new Promise<DynamicsResponse>(resolve => {
+      const requestId = Date.now().toString();
+
+      const responseListener = (event: MessageEvent) => {
+        if (event.source !== window) {
+          return;
+        }
+
+        if (event.data.type === 'LEVELUP_RESPONSE' && event.data.requestId === requestId) {
+          window.clearTimeout(timeoutId);
+          window.removeEventListener('message', responseListener);
+          resolve(event.data as DynamicsResponse);
+        }
+      };
+
+      const timeoutId = window.setTimeout(() => {
+        window.removeEventListener('message', responseListener);
+        resolve({ success: false, error: 'No response from injected script' });
+      }, timeoutMs);
+
+      window.addEventListener('message', responseListener);
+      window.postMessage(
+        {
+          type: 'LEVELUP_REQUEST',
+          action: message.action,
+          data: message.data,
+          requestId,
+        },
+        window.location.origin
+      );
+    });
   }
 
   private setupMessageListener(): void {
@@ -181,32 +233,27 @@ class ContentScript {
     message: ActionMessage,
     sendResponse: (response: DynamicsResponse) => void
   ): void {
-    const requestId = Date.now().toString();
+    void (async () => {
+      let response = await this.forwardActionToInjectedScript(message);
 
-    // Forward the action to the injected script
-    window.postMessage(
-      {
-        type: 'LEVELUP_REQUEST',
-        action: message.action,
-        data: message.data,
-        requestId: requestId,
-      },
-      window.location.origin
-    );
-
-    // Set up a one-time listener for the response
-    const responseListener = (event: MessageEvent) => {
-      if (event.source !== window) {
-        return;
+      if (this.shouldRetryAfterReinject(response)) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'Level Up: Retrying action after reinjecting page script',
+          message.action,
+          response.error
+        );
+        this.injectScript();
+        response = await this.forwardActionToInjectedScript(message, 3500);
       }
 
-      if (event.data.type === 'LEVELUP_RESPONSE' && event.data.requestId === requestId) {
-        window.removeEventListener('message', responseListener);
-        sendResponse(event.data);
-      }
-    };
-
-    window.addEventListener('message', responseListener);
+      sendResponse(response);
+    })().catch(error => {
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    });
   }
 
   private routeMessage(
