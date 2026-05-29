@@ -13,6 +13,7 @@ interface Solution {
   solutionid: string;
   version: string;
   ismanaged: boolean;
+  isvisible?: boolean;
 }
 
 interface StoredSolutionOverride {
@@ -645,6 +646,19 @@ export class LevelUpExtension {
     return solutionId.replace(/[{}]/g, '').toLowerCase();
   }
 
+  private canBePreferredSolution(solution: Solution): boolean {
+    if (!solution.solutionid || !solution.uniquename) {
+      return false;
+    }
+
+    if (solution.isvisible === false) {
+      return false;
+    }
+
+    const reservedSystemSolutions = new Set(['active', 'default']);
+    return !reservedSystemSolutions.has(solution.uniquename.toLowerCase());
+  }
+
   private escapeHtml(value: string): string {
     const div = document.createElement('div');
     div.textContent = value;
@@ -698,6 +712,7 @@ export class LevelUpExtension {
         'friendlyname',
         'version',
         'ismanaged',
+        'isvisible',
       ])) as Record<string, unknown>;
 
       if (!solution?.solutionid) {
@@ -713,6 +728,7 @@ export class LevelUpExtension {
         solutionid: solution.solutionid as string,
         version: (solution.version as string) || '',
         ismanaged: Boolean(solution.ismanaged),
+        isvisible: solution.isvisible as boolean,
       };
     } catch (error) {
       return null;
@@ -722,7 +738,7 @@ export class LevelUpExtension {
   private async getSolutionsForPicker(): Promise<Solution[]> {
     const webApiClient = WebApiClient.getInstance();
     const response = await webApiClient.retrieveMultiple('solutions', {
-      select: ['solutionid', 'uniquename', 'friendlyname', 'version', 'ismanaged'],
+      select: ['solutionid', 'uniquename', 'friendlyname', 'version', 'ismanaged', 'isvisible'],
       orderBy: ['friendlyname asc', 'uniquename asc'],
     });
 
@@ -737,8 +753,9 @@ export class LevelUpExtension {
         solutionid: (solution.solutionid as string) || '',
         version: (solution.version as string) || '',
         ismanaged: Boolean(solution.ismanaged),
+        isvisible: solution.isvisible as boolean,
       }))
-      .filter(solution => Boolean(solution.solutionid && solution.uniquename))
+      .filter(solution => this.canBePreferredSolution(solution))
       .sort((left, right) => left.friendlyname.localeCompare(right.friendlyname));
   }
 
@@ -798,6 +815,10 @@ export class LevelUpExtension {
     const selectedSolution = await this.getSolutionById(data.solutionId);
     if (!selectedSolution) {
       throw new Error('Selected solution was not found');
+    }
+
+    if (!this.canBePreferredSolution(selectedSolution)) {
+      throw new Error('Selected solution cannot be used as the preferred default solution');
     }
 
     await this.setPreferredSolutionOnServer(selectedSolution.solutionid);
