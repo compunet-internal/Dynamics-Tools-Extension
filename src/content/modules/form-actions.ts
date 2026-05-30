@@ -662,7 +662,8 @@ export class FormActions {
   async openTableEditor(): Promise<string> {
     try {
       const entityName = DynamicsUtils.getEntityNameFromContext();
-      if (!entityName) throw new Error('Could not determine entity name from current page context.');
+      if (!entityName)
+        throw new Error('Could not determine entity name from current page context.');
       const globalContext = Xrm.Utility.getGlobalContext();
       const orgSettings = globalContext.organizationSettings as Xrm.OrganizationSettings & {
         environmentId?: string;
@@ -701,7 +702,8 @@ export class FormActions {
     try {
       const webApiClient = WebApiClient.getInstance();
       const entityName = DynamicsUtils.getEntityNameFromContext();
-      if (!entityName) throw new Error('Could not determine entity name from current page context.');
+      if (!entityName)
+        throw new Error('Could not determine entity name from current page context.');
       const environmentId = Xrm.Utility.getGlobalContext().organizationSettings.bapEnvironmentId;
 
       // Get solution information using the reusable method
