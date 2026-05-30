@@ -20,7 +20,11 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
-import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm, getPageTypeFromTab } from '#utils/dynamicsDetection';
+import {
+  checkDynamicsViaXrm,
+  getEnvironmentUrlFromXrm,
+  getPageTypeFromTab,
+} from '#utils/dynamicsDetection';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { ThemeProvider } from '#contexts/ThemeContext';
 import { formActions, navigationActions, ActionConfig } from '#config/actions';
@@ -189,7 +193,10 @@ const PopupApp: React.FC = () => {
     });
   };
 
-  const applySolutionState = (state: { solutions: SolutionOption[]; currentSolutionId: string }) => {
+  const applySolutionState = (state: {
+    solutions: SolutionOption[];
+    currentSolutionId: string;
+  }) => {
     const safeList = Array.isArray(state?.solutions) ? state.solutions : [];
     setSolutions(safeList);
     const id = state?.currentSolutionId || safeList[0]?.solutionid || '';
@@ -197,7 +204,9 @@ const PopupApp: React.FC = () => {
     setSelectedSolutionId(id);
     // Persist as hint for next popup open
     if (safeList.length > 0) {
-      chrome.storage.local.set({ levelup_popup_solution_hint: { solutions: safeList, currentSolutionId: id } });
+      chrome.storage.local.set({
+        levelup_popup_solution_hint: { solutions: safeList, currentSolutionId: id },
+      });
     }
   };
 
@@ -458,9 +467,7 @@ const PopupApp: React.FC = () => {
               py: 2,
             }}
           >
-            {isSupportedHost !== false ? (
-              <CircularProgress size={28} />
-            ) : null}
+            {isSupportedHost !== false ? <CircularProgress size={28} /> : null}
             <Typography
               variant='subtitle2'
               sx={{ fontWeight: 700, fontSize: '0.85rem', textAlign: 'center' }}
@@ -469,7 +476,12 @@ const PopupApp: React.FC = () => {
             </Typography>
             {contextMessage ? (
               <Typography
-                sx={{ fontSize: '0.72rem', color: 'text.secondary', textAlign: 'center', lineHeight: 1.4 }}
+                sx={{
+                  fontSize: '0.72rem',
+                  color: 'text.secondary',
+                  textAlign: 'center',
+                  lineHeight: 1.4,
+                }}
               >
                 {contextMessage}
               </Typography>
@@ -491,7 +503,14 @@ const PopupApp: React.FC = () => {
             {/* Default solution selector moved to top of popup */}
             {extensionConfig.showNavigationSection && (
               <Box sx={{ mb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    mb: 0.5,
+                  }}
+                >
                   <Typography
                     variant='subtitle2'
                     sx={{
@@ -505,7 +524,13 @@ const PopupApp: React.FC = () => {
                   >
                     Default Solution
                   </Typography>
-                  <Tooltip title={isStaleSolutions ? 'Refresh solutions (showing cached data)' : 'Refresh solutions list'}>
+                  <Tooltip
+                    title={
+                      isStaleSolutions
+                        ? 'Refresh solutions (showing cached data)'
+                        : 'Refresh solutions list'
+                    }
+                  >
                     <span>
                       <IconButton
                         size='small'
@@ -517,7 +542,10 @@ const PopupApp: React.FC = () => {
                           sx={{
                             fontSize: 14,
                             animation: isRefreshingSolutions ? 'spin 1s linear infinite' : 'none',
-                            '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
+                            '@keyframes spin': {
+                              '0%': { transform: 'rotate(0deg)' },
+                              '100%': { transform: 'rotate(360deg)' },
+                            },
                           }}
                         />
                       </IconButton>
@@ -555,7 +583,11 @@ const PopupApp: React.FC = () => {
                           );
                         }
                         const sol = solutions.find(s => s.solutionid === value);
-                        return sol ? sol.friendlyname : (value ? String(value) : 'Select solution...');
+                        return sol
+                          ? sol.friendlyname
+                          : value
+                            ? String(value)
+                            : 'Select solution...';
                       }}
                       sx={{
                         '& .MuiSelect-select': {
@@ -588,12 +620,27 @@ const PopupApp: React.FC = () => {
                                 minWidth: 0,
                               }}
                             >
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{solution.friendlyname}</span>
-                              {isCurrent && (
-                                isStaleSolutions
-                                  ? <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }} />
-                                  : <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }} />
-                              )}
+                              <span
+                                style={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  minWidth: 0,
+                                  flex: 1,
+                                }}
+                              >
+                                {solution.friendlyname}
+                              </span>
+                              {isCurrent &&
+                                (isStaleSolutions ? (
+                                  <CheckCircleOutlinedIcon
+                                    sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }}
+                                  />
+                                ) : (
+                                  <CheckCircleIcon
+                                    sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }}
+                                  />
+                                ))}
                             </Box>
                           </MenuItem>
                         );
@@ -669,11 +716,15 @@ const PopupApp: React.FC = () => {
                       <Link
                         key={action.id}
                         component='button'
-                        onClick={available ? (e: React.MouseEvent) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleActionClick(action.id);
-                        } : undefined}
+                        onClick={
+                          available
+                            ? (e: React.MouseEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleActionClick(action.id);
+                              }
+                            : undefined
+                        }
                         sx={{
                           color: 'text.primary',
                           textDecoration: 'none',
@@ -691,15 +742,21 @@ const PopupApp: React.FC = () => {
                           gap: 0.25,
                           opacity: available ? 1 : 0.4,
                           transition: 'all 0.12s ease',
-                          '&:hover': available ? {
-                            backgroundColor: theme =>
-                              theme.palette.mode === 'dark'
-                                ? 'rgba(255,255,255,0.02)'
-                                : 'rgba(0,0,0,0.04)',
-                            transform: 'translateY(-2px)',
-                          } : {},
+                          '&:hover': available
+                            ? {
+                                backgroundColor: theme =>
+                                  theme.palette.mode === 'dark'
+                                    ? 'rgba(255,255,255,0.02)'
+                                    : 'rgba(0,0,0,0.04)',
+                                transform: 'translateY(-2px)',
+                              }
+                            : {},
                         }}
-                        title={available ? (action.tooltip || action.label) : `${action.label} — requires an open form`}
+                        title={
+                          available
+                            ? action.tooltip || action.label
+                            : `${action.label} — requires an open form`
+                        }
                       >
                         {IconComp ? (
                           <IconComp sx={{ fontSize: 18 }} />

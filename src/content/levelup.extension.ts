@@ -188,7 +188,9 @@ export class LevelUpExtension {
 
       // Proactively populate solutions cache on first load
       if (!this.getCachedSolutionState()) {
-        this.refreshSolutionsForPicker().catch(() => {/* non-critical */});
+        this.refreshSolutionsForPicker().catch(() => {
+          /* non-critical */
+        });
       }
 
       // eslint-disable-next-line no-console
@@ -628,7 +630,9 @@ export class LevelUpExtension {
     const cached = this.getCachedSolutionState();
     if (cached?.currentSolutionId && cached.solutions.length > 0) {
       const found = cached.solutions.find(
-        s => this.normalizeSolutionId(s.solutionid) === this.normalizeSolutionId(cached.currentSolutionId)
+        s =>
+          this.normalizeSolutionId(s.solutionid) ===
+          this.normalizeSolutionId(cached.currentSolutionId)
       );
       if (found) return found;
     }
@@ -872,8 +876,16 @@ export class LevelUpExtension {
     try {
       const cached = localStorage.getItem(this.solutionsCacheKey);
       if (!cached) return null;
-      const parsed = JSON.parse(cached) as { solutions: Solution[]; currentSolutionId: string; timestamp: number };
-      if (parsed?.solutions && parsed.timestamp && Date.now() - parsed.timestamp < this.SOLUTIONS_CACHE_DURATION_MS) {
+      const parsed = JSON.parse(cached) as {
+        solutions: Solution[];
+        currentSolutionId: string;
+        timestamp: number;
+      };
+      if (
+        parsed?.solutions &&
+        parsed.timestamp &&
+        Date.now() - parsed.timestamp < this.SOLUTIONS_CACHE_DURATION_MS
+      ) {
         return { solutions: parsed.solutions, currentSolutionId: parsed.currentSolutionId || '' };
       }
     } catch {
@@ -884,7 +896,10 @@ export class LevelUpExtension {
 
   private setCachedSolutionState(solutions: Solution[], currentSolutionId: string): void {
     try {
-      localStorage.setItem(this.solutionsCacheKey, JSON.stringify({ solutions, currentSolutionId, timestamp: Date.now() }));
+      localStorage.setItem(
+        this.solutionsCacheKey,
+        JSON.stringify({ solutions, currentSolutionId, timestamp: Date.now() })
+      );
     } catch {
       // localStorage write failed — ignore
     }
@@ -896,7 +911,10 @@ export class LevelUpExtension {
   }
 
   /** Fetches fresh solutions + current from the API, updates cache, returns result. */
-  public async refreshSolutionsForPicker(): Promise<{ solutions: Solution[]; currentSolutionId: string }> {
+  public async refreshSolutionsForPicker(): Promise<{
+    solutions: Solution[];
+    currentSolutionId: string;
+  }> {
     const [freshSolutions, currentInfo] = await Promise.all([
       this.getSolutionsForPicker(),
       this.getDataversePreferredSolution().catch(() => null),
@@ -938,7 +956,10 @@ export class LevelUpExtension {
     // Update the cached currentSolutionId so the popup reflects the change immediately
     const cached = this.getCachedSolutionState();
     if (cached) {
-      this.setCachedSolutionState(cached.solutions, this.normalizeSolutionId(selectedSolution.solutionid));
+      this.setCachedSolutionState(
+        cached.solutions,
+        this.normalizeSolutionId(selectedSolution.solutionid)
+      );
     }
 
     return `Default solution set to ${selectedSolution.friendlyname} for this environment.`;

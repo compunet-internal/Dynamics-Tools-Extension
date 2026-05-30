@@ -129,14 +129,16 @@ class ContentScript {
         normalizedError.indexOf('is not a function') !== -1) ||
       (normalizedError.indexOf('method') !== -1 &&
         normalizedError.indexOf('not found on target object') !== -1) ||
-      normalizedError.indexOf('unknown action') !== -1 ||
-      normalizedError.indexOf('no response from injected script') !== -1
+      normalizedError.indexOf('unknown action') !== -1
+      // NOTE: plain timeouts ('no response from injected script') must NOT retry —
+      // the action may have already executed (e.g. openFormEditor opened a tab)
+      // and retrying would fire it a second time.
     );
   }
 
   private async forwardActionToInjectedScript(
     message: ActionMessage,
-    timeoutMs: number = 2500
+    timeoutMs: number = 8000
   ): Promise<DynamicsResponse> {
     return await new Promise<DynamicsResponse>(resolve => {
       const requestId = Date.now().toString();
