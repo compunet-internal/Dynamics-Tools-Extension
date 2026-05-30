@@ -123,9 +123,7 @@ const PopupApp: React.FC = () => {
           if (!cancelled) {
             setIsConnected(false);
             setIsContextReady(false);
-            setContextMessage(
-              `Preparing Dynamics context... (${attempt + 1}/${maxAttempts}).`
-            );
+            setContextMessage(`Preparing Dynamics context... (${attempt + 1}/${maxAttempts}).`);
           }
 
           await new Promise(resolve => window.setTimeout(resolve, 900));
@@ -460,7 +458,9 @@ const PopupApp: React.FC = () => {
             }}
           >
             <Typography variant='subtitle2' sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
-              {isSupportedHost === false ? 'Open on a Dynamics Page' : 'Waiting for Dynamics Context'}
+              {isSupportedHost === false
+                ? 'Open on a Dynamics Page'
+                : 'Waiting for Dynamics Context'}
             </Typography>
             <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.35 }}>
               {contextMessage}
@@ -494,356 +494,355 @@ const PopupApp: React.FC = () => {
 
         {isContextReady && (
           <>
-
-        {/* Default solution selector moved to top of popup */}
-        {extensionConfig.showNavigationSection && (
-          <Box sx={{ mb: 1.5 }}>
-            <Typography
-              variant='subtitle2'
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                mb: 0.5,
-                color: 'text.primary',
-                textTransform: 'uppercase',
-                letterSpacing: '0.3px',
-                opacity: 0.8,
-              }}
-            >
-              Default Solution
-            </Typography>
-            <Box
-              sx={{
-                p: 0.5,
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.background.paper
-                    : 'rgba(255,255,255,0.85)',
-                borderRadius: '6px',
-                border: theme => `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <FormControl
-                fullWidth
-                size='small'
-                disabled={isLoadingSolutions || isSavingSolution || !isConnected}
-              >
-                <Select
-                  value={selectedSolutionId}
-                  onChange={handleDefaultSolutionChange}
+            {/* Default solution selector moved to top of popup */}
+            {extensionConfig.showNavigationSection && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography
+                  variant='subtitle2'
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    mb: 0.5,
+                    color: 'text.primary',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                    opacity: 0.8,
+                  }}
                 >
-                  {solutions.length === 0 && (
-                    <MenuItem value='' disabled>
-                      {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
-                    </MenuItem>
-                  )}
-                  {solutions.map(solution => {
-                    const isCurrent =
-                      normalizeSolutionId(solution.solutionid) === normalizeSolutionId(currentSolutionId);
+                  Default Solution
+                </Typography>
+                <Box
+                  sx={{
+                    p: 0.5,
+                    backgroundColor: theme =>
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.background.paper
+                        : 'rgba(255,255,255,0.85)',
+                    borderRadius: '6px',
+                    border: theme => `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <FormControl
+                    fullWidth
+                    size='small'
+                    disabled={isLoadingSolutions || isSavingSolution || !isConnected}
+                  >
+                    <Select value={selectedSolutionId} onChange={handleDefaultSolutionChange}>
+                      {solutions.length === 0 && (
+                        <MenuItem value='' disabled>
+                          {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
+                        </MenuItem>
+                      )}
+                      {solutions.map(solution => {
+                        const isCurrent =
+                          normalizeSolutionId(solution.solutionid) ===
+                          normalizeSolutionId(currentSolutionId);
+
+                        return (
+                          <MenuItem key={solution.solutionid} value={solution.solutionid}>
+                            <Box
+                              sx={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 1,
+                              }}
+                            >
+                              <span>{solution.friendlyname}</span>
+                              {isCurrent && (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                              )}
+                            </Box>
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
+            )}
+
+            {/* Form Actions */}
+            {extensionConfig.showFormSection && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography
+                  variant='subtitle2'
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    mb: 0.5,
+                    color: 'text.primary',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                    opacity: 0.8,
+                  }}
+                >
+                  Form Actions
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 0.5,
+                    p: 0.5,
+                    backgroundColor: theme =>
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.background.paper
+                        : 'rgba(255,255,255,0.85)',
+                    borderRadius: '6px',
+                    border: theme => `1px solid ${theme.palette.divider}`,
+                    alignItems: 'stretch',
+                  }}
+                >
+                  {formActions.map((action: ActionConfig) => {
+                    const label = action.label || '';
+                    const lowered = label.toLowerCase();
+                    const getShort = (text: string) => {
+                      if (text.indexOf('url') !== -1) return 'URL';
+                      if (text.indexOf('clone') !== -1) return 'Clone';
+                      if (text.indexOf('id') !== -1) return 'ID';
+                      if (text.indexOf('find') !== -1) return 'Find';
+                      if (text.indexOf('new') !== -1) return 'New';
+                      if (text.indexOf('record') !== -1) return 'Record';
+                      if (text.indexOf('solution') !== -1) return 'Solution';
+                      return text.split(' ')[0].slice(0, 8);
+                    };
+                    const getIcon = (text: string) => {
+                      if (text.indexOf('url') !== -1) return '🔗';
+                      if (text.indexOf('clone') !== -1) return '📋';
+                      if (text.indexOf('id') !== -1) return '🆔';
+                      if (text.indexOf('find') !== -1) return '🔍';
+                      if (text.indexOf('job') !== -1) return '⚙️';
+                      if (text.indexOf('solution') !== -1) return '📦';
+                      if (text.indexOf('record') !== -1) return '📄';
+                      return '🔧';
+                    };
+
+                    const short = action.shortLabel || getShort(lowered);
+                    const iconEmoji = action.shortIcon || getIcon(lowered);
+                    const IconComp = (action.icon || null) as React.ComponentType<any> | null;
 
                     return (
-                      <MenuItem key={solution.solutionid} value={solution.solutionid}>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 1,
-                          }}
-                        >
-                          <span>{solution.friendlyname}</span>
-                          {isCurrent && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
-                        </Box>
-                      </MenuItem>
+                      <Link
+                        key={action.id}
+                        component='button'
+                        onClick={(e: React.MouseEvent) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleActionClick(action.id);
+                        }}
+                        sx={{
+                          color: 'text.primary',
+                          textDecoration: 'none',
+                          fontSize: '0.7rem',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '6px 4px',
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 0.25,
+                          transition: 'all 0.12s ease',
+                          '&:hover': {
+                            backgroundColor: theme =>
+                              theme.palette.mode === 'dark'
+                                ? 'rgba(255,255,255,0.02)'
+                                : 'rgba(0,0,0,0.04)',
+                            transform: 'translateY(-2px)',
+                          },
+                        }}
+                        title={action.tooltip || action.label}
+                      >
+                        {IconComp ? (
+                          <IconComp sx={{ fontSize: 18 }} />
+                        ) : (
+                          <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                        )}
+                        <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                      </Link>
                     );
                   })}
-                </Select>
-              </FormControl>
-            </Box>
-          </Box>
-        )}
+                </Box>
+              </Box>
+            )}
 
-        {/* Form Actions */}
-        {extensionConfig.showFormSection && (
-          <Box sx={{ mb: 1.5 }}>
-            <Typography
-              variant='subtitle2'
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                mb: 0.5,
-                color: 'text.primary',
-                textTransform: 'uppercase',
-                letterSpacing: '0.3px',
-                opacity: 0.8,
-              }}
-            >
-              Form Actions
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 0.5,
-                p: 0.5,
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.background.paper
-                    : 'rgba(255,255,255,0.85)',
-                borderRadius: '6px',
-                border: theme => `1px solid ${theme.palette.divider}`,
-                alignItems: 'stretch',
-              }}
-            >
-              {formActions.map((action: ActionConfig) => {
-                const label = action.label || '';
-                const lowered = label.toLowerCase();
-                const getShort = (text: string) => {
-                  if (text.indexOf('url') !== -1) return 'URL';
-                  if (text.indexOf('clone') !== -1) return 'Clone';
-                  if (text.indexOf('id') !== -1) return 'ID';
-                  if (text.indexOf('find') !== -1) return 'Find';
-                  if (text.indexOf('new') !== -1) return 'New';
-                  if (text.indexOf('record') !== -1) return 'Record';
-                  if (text.indexOf('solution') !== -1) return 'Solution';
-                  return text.split(' ')[0].slice(0, 8);
-                };
-                const getIcon = (text: string) => {
-                  if (text.indexOf('url') !== -1) return '🔗';
-                  if (text.indexOf('clone') !== -1) return '📋';
-                  if (text.indexOf('id') !== -1) return '🆔';
-                  if (text.indexOf('find') !== -1) return '🔍';
-                  if (text.indexOf('job') !== -1) return '⚙️';
-                  if (text.indexOf('solution') !== -1) return '📦';
-                  if (text.indexOf('record') !== -1) return '📄';
-                  return '🔧';
-                };
+            {/* Navigation Actions */}
+            {extensionConfig.showNavigationSection && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography
+                  variant='subtitle2'
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    mb: 0.5,
+                    color: 'text.primary',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                    opacity: 0.8,
+                  }}
+                >
+                  Navigation
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 0.5,
+                    p: 0.5,
+                    backgroundColor: theme =>
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.background.paper
+                        : 'rgba(255,255,255,0.85)',
+                    borderRadius: '6px',
+                    border: theme => `1px solid ${theme.palette.divider}`,
+                    alignItems: 'stretch',
+                  }}
+                >
+                  {navigationActions
+                    .filter(action => action.id !== 'navigation:select-default-solution')
+                    .map((action: ActionConfig) => {
+                      const label = action.label || '';
+                      const lowered = label.toLowerCase();
+                      const short =
+                        action.shortLabel ||
+                        (lowered.indexOf('open') !== -1
+                          ? 'Open'
+                          : lowered.indexOf('list') !== -1
+                            ? 'List'
+                            : lowered.split(' ')[0].slice(0, 8));
+                      const iconEmoji =
+                        action.shortIcon ||
+                        (lowered.indexOf('open') !== -1
+                          ? '🔗'
+                          : lowered.indexOf('list') !== -1
+                            ? '📋'
+                            : '➡️');
+                      const IconComp2 = (action.icon || null) as React.ComponentType<any> | null;
 
-                const short = action.shortLabel || getShort(lowered);
-                const iconEmoji = action.shortIcon || getIcon(lowered);
-                const IconComp = (action.icon || null) as React.ComponentType<any> | null;
+                      return (
+                        <Link
+                          key={action.id}
+                          component='button'
+                          onClick={(e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleActionClick(action.id);
+                          }}
+                          sx={{
+                            color: 'text.primary',
+                            textDecoration: 'none',
+                            fontSize: '0.7rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '6px 4px',
+                            borderRadius: '6px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 0.25,
+                            transition: 'all 0.12s ease',
+                            '&:hover': {
+                              backgroundColor: theme =>
+                                theme.palette.mode === 'dark'
+                                  ? 'rgba(255,255,255,0.02)'
+                                  : 'rgba(0,0,0,0.04)',
+                              transform: 'translateY(-2px)',
+                            },
+                          }}
+                          title={action.tooltip || action.label}
+                        >
+                          {IconComp2 ? (
+                            <IconComp2 sx={{ fontSize: 18 }} />
+                          ) : (
+                            <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                          )}
+                          <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                        </Link>
+                      );
+                    })}
+                </Box>
+              </Box>
+            )}
 
-                return (
+            {/* Sidebar Modes at Bottom - Only show for non-Firefox browsers */}
+            {!isFirefox && (
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  pt: 1,
+                  mt: 0.5,
+                  borderTop: theme => `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Typography
+                  variant='caption'
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.65rem',
+                    display: 'block',
+                    mb: 0.25,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                    fontWeight: 500,
+                  }}
+                >
+                  Sidebar Modes
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5 }}>
                   <Link
-                    key={action.id}
                     component='button'
-                    onClick={(e: React.MouseEvent) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleActionClick(action.id);
-                    }}
+                    onClick={() => switchDisplayModeAndOpenSidebar('default')}
                     sx={{
-                      color: 'text.primary',
-                      textDecoration: 'none',
+                      color: 'primary.main',
                       fontSize: '0.7rem',
+                      textDecoration: 'none',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
-                      padding: '6px 4px',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 0.25,
-                      transition: 'all 0.12s ease',
+                      padding: '2px 4px',
+                      fontWeight: 500,
+                      transition: 'color 0.2s ease',
                       '&:hover': {
-                        backgroundColor: theme =>
-                          theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.02)'
-                            : 'rgba(0,0,0,0.04)',
-                        transform: 'translateY(-2px)',
+                        color: 'primary.dark',
+                        textDecoration: 'underline',
                       },
                     }}
-                    title={action.tooltip || action.label}
                   >
-                    {IconComp ? (
-                      <IconComp sx={{ fontSize: 18 }} />
-                    ) : (
-                      <span style={{ fontSize: 18 }}>{iconEmoji}</span>
-                    )}
-                    <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                    Default
                   </Link>
-                );
-              })}
-            </Box>
-          </Box>
-        )}
-
-        {/* Navigation Actions */}
-        {extensionConfig.showNavigationSection && (
-          <Box sx={{ mb: 1.5 }}>
-            <Typography
-              variant='subtitle2'
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                mb: 0.5,
-                color: 'text.primary',
-                textTransform: 'uppercase',
-                letterSpacing: '0.3px',
-                opacity: 0.8,
-              }}
-            >
-              Navigation
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 0.5,
-                p: 0.5,
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.background.paper
-                    : 'rgba(255,255,255,0.85)',
-                borderRadius: '6px',
-                border: theme => `1px solid ${theme.palette.divider}`,
-                alignItems: 'stretch',
-              }}
-            >
-              {navigationActions
-                .filter(action => action.id !== 'navigation:select-default-solution')
-                .map((action: ActionConfig) => {
-                const label = action.label || '';
-                const lowered = label.toLowerCase();
-                const short =
-                  action.shortLabel ||
-                  (lowered.indexOf('open') !== -1
-                    ? 'Open'
-                    : lowered.indexOf('list') !== -1
-                      ? 'List'
-                      : lowered.split(' ')[0].slice(0, 8));
-                const iconEmoji =
-                  action.shortIcon ||
-                  (lowered.indexOf('open') !== -1
-                    ? '🔗'
-                    : lowered.indexOf('list') !== -1
-                      ? '📋'
-                      : '➡️');
-                const IconComp2 = (action.icon || null) as React.ComponentType<any> | null;
-
-                return (
+                  <Box sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>•</Box>
                   <Link
-                    key={action.id}
                     component='button'
-                    onClick={(e: React.MouseEvent) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleActionClick(action.id);
-                    }}
+                    onClick={() => switchDisplayModeAndOpenSidebar('simple')}
                     sx={{
-                      color: 'text.primary',
-                      textDecoration: 'none',
+                      color: 'primary.main',
                       fontSize: '0.7rem',
+                      textDecoration: 'none',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
-                      padding: '6px 4px',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 0.25,
-                      transition: 'all 0.12s ease',
+                      padding: '2px 4px',
+                      fontWeight: 500,
+                      transition: 'color 0.2s ease',
                       '&:hover': {
-                        backgroundColor: theme =>
-                          theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.02)'
-                            : 'rgba(0,0,0,0.04)',
-                        transform: 'translateY(-2px)',
+                        color: 'primary.dark',
+                        textDecoration: 'underline',
                       },
                     }}
-                    title={action.tooltip || action.label}
                   >
-                    {IconComp2 ? (
-                      <IconComp2 sx={{ fontSize: 18 }} />
-                    ) : (
-                      <span style={{ fontSize: 18 }}>{iconEmoji}</span>
-                    )}
-                    <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                    Simple
                   </Link>
-                );
-                })}
-            </Box>
-          </Box>
-        )}
-
-        {/* Sidebar Modes at Bottom - Only show for non-Firefox browsers */}
-        {!isFirefox && (
-          <Box
-            sx={{
-              textAlign: 'center',
-              pt: 1,
-              mt: 0.5,
-              borderTop: theme => `1px solid ${theme.palette.divider}`,
-            }}
-          >
-            <Typography
-              variant='caption'
-              sx={{
-                color: 'text.secondary',
-                fontSize: '0.65rem',
-                display: 'block',
-                mb: 0.25,
-                textTransform: 'uppercase',
-                letterSpacing: '0.3px',
-                fontWeight: 500,
-              }}
-            >
-              Sidebar Modes
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5 }}>
-              <Link
-                component='button'
-                onClick={() => switchDisplayModeAndOpenSidebar('default')}
-                sx={{
-                  color: 'primary.main',
-                  fontSize: '0.7rem',
-                  textDecoration: 'none',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  fontWeight: 500,
-                  transition: 'color 0.2s ease',
-                  '&:hover': {
-                    color: 'primary.dark',
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                Default
-              </Link>
-              <Box sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>•</Box>
-              <Link
-                component='button'
-                onClick={() => switchDisplayModeAndOpenSidebar('simple')}
-                sx={{
-                  color: 'primary.main',
-                  fontSize: '0.7rem',
-                  textDecoration: 'none',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  fontWeight: 500,
-                  transition: 'color 0.2s ease',
-                  '&:hover': {
-                    color: 'primary.dark',
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                Simple
-              </Link>
-            </Box>
-          </Box>
-        )}
+                </Box>
+              </Box>
+            )}
           </>
         )}
       </Box>

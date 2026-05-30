@@ -671,12 +671,7 @@ export class LevelUpExtension {
     const normalizedUniqueName = solution.uniquename.toLowerCase();
     const normalizedFriendlyName = solution.friendlyname.toLowerCase();
 
-    const systemUniqueNamePrefixes = [
-      'msdyn_',
-      'mspp_',
-      'adx_',
-      'microsoft',
-    ];
+    const systemUniqueNamePrefixes = ['msdyn_', 'mspp_', 'adx_', 'microsoft'];
 
     const systemFriendlyNamePrefixes = ['dynamics ', 'microsoft ', 'default ', 'active '];
 
