@@ -175,6 +175,20 @@ export class NavigationActions {
   }
 
   /**
+   * Return cached solution state (solutions + currentSolutionId) without any API call
+   */
+  static getCombinedSolutionState(): unknown {
+    return window.levelUpExtension.getCombinedSolutionState();
+  }
+
+  /**
+   * Force-refresh solutions cache and return combined state { solutions, currentSolutionId }
+   */
+  static async refreshSolutionsForPicker(): Promise<unknown> {
+    return await window.levelUpExtension.refreshSolutionsForPicker();
+  }
+
+  /**
    * Set preferred solution for current user/environment
    */
   static async setPreferredSolution(data: { solutionId: string }): Promise<unknown> {

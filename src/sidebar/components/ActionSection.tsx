@@ -503,19 +503,19 @@ const ActionButtonList: React.FC<{
         border: 1,
         borderColor: 'divider',
         backgroundColor: 'transparent',
-        cursor: 'pointer',
+        cursor: available ? 'pointer' : 'not-allowed',
         transition: 'all 0.2s ease-in-out',
         width: '100%',
         maxWidth: '100%',
         minWidth: 0,
         opacity: available ? 1 : 0.4,
         '&:hover': {
-          backgroundColor: 'action.hover',
+          backgroundColor: available ? 'action.hover' : 'transparent',
           borderColor: 'divider',
-          boxShadow: 1,
+          boxShadow: available ? 1 : 0,
         },
       }}
-      onClick={() => onActionClick(button.id)}
+      onClick={available ? () => onActionClick(button.id) : undefined}
     >
       <Box
         sx={{

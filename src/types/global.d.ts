@@ -45,6 +45,8 @@ export type NavigationActionName =
     | 'select-default-solution'
     | 'get-current-solution'
     | 'list-solutions'
+    | 'get-solution-state'
+    | 'refresh-solutions'
     | 'set-preferred-solution'
     | 'open-processes'
     | 'open-mailboxes'

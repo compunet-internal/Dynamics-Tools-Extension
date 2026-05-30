@@ -116,6 +116,14 @@ export class ActionHandlerRegistry {
         contentScriptMethod: 'listSolutionsForPicker',
       },
       {
+        action: 'navigation:get-solution-state',
+        contentScriptMethod: 'getCombinedSolutionState',
+      },
+      {
+        action: 'navigation:refresh-solutions',
+        contentScriptMethod: 'refreshSolutionsForPicker',
+      },
+      {
         action: 'navigation:set-preferred-solution',
         contentScriptMethod: 'setPreferredSolution',
         dataExtractor: data => {

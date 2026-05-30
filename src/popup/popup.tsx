@@ -15,8 +15,12 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
-import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm } from '#utils/dynamicsDetection';
+import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm, getPageTypeFromTab } from '#utils/dynamicsDetection';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { ThemeProvider } from '#contexts/ThemeContext';
 import { formActions, navigationActions, ActionConfig } from '#config/actions';
@@ -46,6 +50,9 @@ const PopupApp: React.FC = () => {
   const [currentSolutionId, setCurrentSolutionId] = useState('');
   const [isLoadingSolutions, setIsLoadingSolutions] = useState(false);
   const [isSavingSolution, setIsSavingSolution] = useState(false);
+  const [isRefreshingSolutions, setIsRefreshingSolutions] = useState(false);
+  const [isStaleSolutions, setIsStaleSolutions] = useState(false);
+  const [isFormContext, setIsFormContext] = useState(false);
 
   const normalizeSolutionId = (solutionId: string | undefined) =>
     (solutionId || '').replace(/[{}]/g, '').toLowerCase();
@@ -67,6 +74,25 @@ const PopupApp: React.FC = () => {
   // Detect if running in Firefox
   const isFirefox =
     typeof chrome !== 'undefined' && chrome.runtime && navigator.userAgent.includes('Firefox');
+
+  // On mount: immediately populate from last-known hint stored in chrome.storage.local
+  useEffect(() => {
+    chrome.storage.local.get('levelup_popup_solution_hint', result => {
+      const hint = result?.levelup_popup_solution_hint as
+        | { solutions: SolutionOption[]; currentSolutionId: string }
+        | undefined;
+      if (hint?.solutions?.length) {
+        setSolutions(prev => {
+          if (prev.length > 0) return prev; // real data already loaded
+          const id = hint.currentSolutionId || hint.solutions[0]?.solutionid || '';
+          setCurrentSolutionId(id);
+          setSelectedSolutionId(id);
+          setIsStaleSolutions(true);
+          return hint.solutions;
+        });
+      }
+    });
+  }, []);
 
   const triggerContextRecheck = () => {
     setContextCheckNonce(value => value + 1);
@@ -95,10 +121,14 @@ const PopupApp: React.FC = () => {
 
         // URL already confirms this is a Dynamics page — mark ready immediately.
         // The environment URL is derived from the tab URL so no Xrm polling needed.
-        const environmentUrl = await getEnvironmentUrlFromXrm();
+        const [environmentUrl, pageType] = await Promise.all([
+          getEnvironmentUrlFromXrm(),
+          getPageTypeFromTab(),
+        ]);
         if (!cancelled) {
           setIsConnected(true);
           setIsContextReady(true);
+          setIsFormContext(pageType === 'entityrecord');
           setContextMessage('');
         }
       } catch (error) {
@@ -159,7 +189,58 @@ const PopupApp: React.FC = () => {
     });
   };
 
-  const refreshSolutionDropdown = async () => {
+  const applySolutionState = (state: { solutions: SolutionOption[]; currentSolutionId: string }) => {
+    const safeList = Array.isArray(state?.solutions) ? state.solutions : [];
+    setSolutions(safeList);
+    const id = state?.currentSolutionId || safeList[0]?.solutionid || '';
+    setCurrentSolutionId(id);
+    setSelectedSolutionId(id);
+    // Persist as hint for next popup open
+    if (safeList.length > 0) {
+      chrome.storage.local.set({ levelup_popup_solution_hint: { solutions: safeList, currentSolutionId: id } });
+    }
+  };
+
+  /** Load from cache instantly — no API call, no spinner */
+  const loadCachedSolutionState = async () => {
+    if (!isConnected) return;
+    const response = await sendActionToActiveTab('navigation:get-solution-state');
+    if (response.success && response.data) {
+      const state = response.data as { solutions: SolutionOption[]; currentSolutionId: string };
+      if (state.solutions?.length) {
+        applySolutionState(state);
+        setIsStaleSolutions(true);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /** Fetch fresh data from API, update state and clear stale flag */
+  const refreshSolutionState = async () => {
+    if (!isConnected) return;
+    setIsRefreshingSolutions(true);
+    try {
+      const response = await sendActionToActiveTab('navigation:refresh-solutions');
+      if (response.success && response.data) {
+        const state = response.data as { solutions: SolutionOption[]; currentSolutionId: string };
+        applySolutionState(state);
+        setIsStaleSolutions(false);
+      } else {
+        throw new Error((response.error as string) || 'Failed to refresh solutions');
+      }
+    } catch (error) {
+      showInlineToast(
+        `Failed to refresh solutions: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'warning'
+      );
+    } finally {
+      setIsRefreshingSolutions(false);
+    }
+  };
+
+  /** Initial load: show cache instantly, then kick off background refresh if stale */
+  const refreshSolutionDropdown = async (forceRefresh = false) => {
     if (!isConnected) {
       setSolutions([]);
       setSelectedSolutionId('');
@@ -167,43 +248,28 @@ const PopupApp: React.FC = () => {
       return;
     }
 
-    setIsLoadingSolutions(true);
-    try {
-      const [listResponse, currentResponse] = await Promise.all([
-        sendActionToActiveTab('navigation:list-solutions'),
-        sendActionToActiveTab('navigation:get-current-solution'),
-      ]);
+    if (forceRefresh) {
+      await refreshSolutionState();
+      return;
+    }
 
-      if (!listResponse.success) {
-        throw new Error(listResponse.error || 'Failed to load solutions');
+    const hadCache = await loadCachedSolutionState();
+    if (!hadCache) {
+      // No cache — fetch with visible loading spinner
+      setIsLoadingSolutions(true);
+      try {
+        await refreshSolutionState();
+      } finally {
+        setIsLoadingSolutions(false);
       }
+    }
+    // If we had cache, background refresh happens lazily via onOpen
+  };
 
-      const loadedSolutions = Array.isArray(listResponse.data)
-        ? (listResponse.data as SolutionOption[])
-        : [];
-
-      setSolutions(loadedSolutions);
-
-      if (currentResponse.success && currentResponse.data) {
-        const current = currentResponse.data as { solutionId?: string };
-        const resolvedCurrentId = current.solutionId || loadedSolutions[0]?.solutionid || '';
-        setCurrentSolutionId(resolvedCurrentId);
-        setSelectedSolutionId(resolvedCurrentId);
-      } else {
-        const fallbackSolutionId = loadedSolutions[0]?.solutionid || '';
-        setCurrentSolutionId(fallbackSolutionId);
-        setSelectedSolutionId(fallbackSolutionId);
-      }
-    } catch (error) {
-      setSolutions([]);
-      setSelectedSolutionId('');
-      setCurrentSolutionId('');
-      showInlineToast(
-        `Failed to load default solution options: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'warning'
-      );
-    } finally {
-      setIsLoadingSolutions(false);
+  /** Called when the dropdown is opened — silently refresh in background */
+  const handleDropdownOpen = () => {
+    if (isStaleSolutions && !isRefreshingSolutions && isConnected) {
+      void refreshSolutionState();
     }
   };
 
@@ -227,13 +293,13 @@ const PopupApp: React.FC = () => {
 
       setCurrentSolutionId(nextSolutionId);
       showInlineToast('Default solution updated', 'success');
-      await refreshSolutionDropdown();
+      await refreshSolutionState();
     } catch (error) {
       showInlineToast(
         `Failed to update preferred solution: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'error'
       );
-      await refreshSolutionDropdown();
+      await refreshSolutionState();
     } finally {
       setIsSavingSolution(false);
     }
@@ -366,6 +432,8 @@ const PopupApp: React.FC = () => {
       <Box
         sx={{
           flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
           p: 1,
           position: 'relative',
         }}
@@ -423,20 +491,39 @@ const PopupApp: React.FC = () => {
             {/* Default solution selector moved to top of popup */}
             {extensionConfig.showNavigationSection && (
               <Box sx={{ mb: 1.5 }}>
-                <Typography
-                  variant='subtitle2'
-                  sx={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    mb: 0.5,
-                    color: 'text.primary',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.3px',
-                    opacity: 0.8,
-                  }}
-                >
-                  Default Solution
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography
+                    variant='subtitle2'
+                    sx={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.3px',
+                      opacity: 0.8,
+                    }}
+                  >
+                    Default Solution
+                  </Typography>
+                  <Tooltip title={isStaleSolutions ? 'Refresh solutions (showing cached data)' : 'Refresh solutions list'}>
+                    <span>
+                      <IconButton
+                        size='small'
+                        disabled={isRefreshingSolutions || isSavingSolution || !isConnected}
+                        onClick={() => refreshSolutionState()}
+                        sx={{ p: 0.25 }}
+                      >
+                        <RefreshIcon
+                          sx={{
+                            fontSize: 14,
+                            animation: isRefreshingSolutions ? 'spin 1s linear infinite' : 'none',
+                            '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
+                          }}
+                        />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
                 <Box
                   sx={{
                     p: 0.5,
@@ -456,11 +543,32 @@ const PopupApp: React.FC = () => {
                     <Select
                       value={selectedSolutionId}
                       onChange={handleDefaultSolutionChange}
-                      sx={{ '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }}
+                      onOpen={handleDropdownOpen}
+                      displayEmpty
+                      renderValue={value => {
+                        if (isLoadingSolutions) {
+                          return (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <CircularProgress size={12} />
+                              <span style={{ fontSize: '0.8rem' }}>Loading solutions...</span>
+                            </Box>
+                          );
+                        }
+                        const sol = solutions.find(s => s.solutionid === value);
+                        return sol ? sol.friendlyname : (value ? String(value) : 'Select solution...');
+                      }}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'block',
+                        },
+                      }}
                     >
-                      {solutions.length === 0 && (
+                      {solutions.length === 0 && !isLoadingSolutions && (
                         <MenuItem value='' disabled>
-                          {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
+                          No solutions available
                         </MenuItem>
                       )}
                       {solutions.map(solution => {
@@ -482,7 +590,9 @@ const PopupApp: React.FC = () => {
                             >
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{solution.friendlyname}</span>
                               {isCurrent && (
-                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }} />
+                                isStaleSolutions
+                                  ? <CheckCircleOutlinedIcon sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }} />
+                                  : <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }} />
                               )}
                             </Box>
                           </MenuItem>
@@ -553,23 +663,24 @@ const PopupApp: React.FC = () => {
                     const short = action.shortLabel || getShort(lowered);
                     const iconEmoji = action.shortIcon || getIcon(lowered);
                     const IconComp = (action.icon || null) as React.ComponentType<any> | null;
+                    const available = action.requiresFormContext ? isFormContext : true;
 
                     return (
                       <Link
                         key={action.id}
                         component='button'
-                        onClick={(e: React.MouseEvent) => {
+                        onClick={available ? (e: React.MouseEvent) => {
                           e.preventDefault();
                           e.stopPropagation();
                           handleActionClick(action.id);
-                        }}
+                        } : undefined}
                         sx={{
                           color: 'text.primary',
                           textDecoration: 'none',
                           fontSize: '0.7rem',
                           background: 'none',
                           border: 'none',
-                          cursor: 'pointer',
+                          cursor: available ? 'pointer' : 'not-allowed',
                           padding: '6px 4px',
                           borderRadius: '6px',
                           fontWeight: 600,
@@ -578,16 +689,17 @@ const PopupApp: React.FC = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 0.25,
+                          opacity: available ? 1 : 0.4,
                           transition: 'all 0.12s ease',
-                          '&:hover': {
+                          '&:hover': available ? {
                             backgroundColor: theme =>
                               theme.palette.mode === 'dark'
                                 ? 'rgba(255,255,255,0.02)'
                                 : 'rgba(0,0,0,0.04)',
                             transform: 'translateY(-2px)',
-                          },
+                          } : {},
                         }}
-                        title={action.tooltip || action.label}
+                        title={available ? (action.tooltip || action.label) : `${action.label} — requires an open form`}
                       >
                         {IconComp ? (
                           <IconComp sx={{ fontSize: 18 }} />

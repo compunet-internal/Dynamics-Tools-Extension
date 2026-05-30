@@ -57,8 +57,10 @@ interface ActionMethodConfig {
 
 export class LevelUpExtension {
   private readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly SOLUTIONS_CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
   private readonly runtimeVersion: number;
   private cacheKey: string = 'levelup_entity_metadata_cache'; // Default, will be updated in init
+  private solutionsCacheKey: string = 'levelup_solutions_cache'; // Default, will be updated in init
   private formActions: FormActions;
   private debuggingActions: DebuggingActions;
 
@@ -116,6 +118,8 @@ export class LevelUpExtension {
       { actionName: 'select-default-solution', method: 'selectDefaultSolution' },
       { actionName: 'get-current-solution', method: 'getCurrentSolutionInfo' },
       { actionName: 'list-solutions', method: 'listSolutionsForPicker' },
+      { actionName: 'get-solution-state', method: 'getCombinedSolutionState' },
+      { actionName: 'refresh-solutions', method: 'refreshSolutionsForPicker' },
       {
         actionName: 'set-preferred-solution',
         method: 'setPreferredSolution',
@@ -182,6 +186,11 @@ export class LevelUpExtension {
         );
       }
 
+      // Proactively populate solutions cache on first load
+      if (!this.getCachedSolutionState()) {
+        this.refreshSolutionsForPicker().catch(() => {/* non-critical */});
+      }
+
       // eslint-disable-next-line no-console
       console.log('CompuNet Dynamics Tools: Dynamics 365 Client API integration ready');
     });
@@ -201,6 +210,7 @@ export class LevelUpExtension {
 
       // Use hostname as part of cache key for environment isolation
       this.cacheKey = `levelup_entity_metadata_${hostname}`;
+      this.solutionsCacheKey = `levelup_solutions_${hostname}`;
 
       console.log(`CompuNet Dynamics Tools: Cache key set for environment: ${hostname}`);
     } catch (error) {
@@ -610,9 +620,20 @@ export class LevelUpExtension {
   }
 
   /**
-   * Get user's preferred solution using WebAPI client
+   * Get user's preferred solution using WebAPI client.
+   * Uses the solutions cache to avoid a live network call when possible.
    */
   public async getPreferredSolution(): Promise<Solution | null> {
+    // Fast path: use the solutions cache (populated on page load)
+    const cached = this.getCachedSolutionState();
+    if (cached?.currentSolutionId && cached.solutions.length > 0) {
+      const found = cached.solutions.find(
+        s => this.normalizeSolutionId(s.solutionid) === this.normalizeSolutionId(cached.currentSolutionId)
+      );
+      if (found) return found;
+    }
+
+    // Slow path: live API call
     try {
       return await this.getDataversePreferredSolution();
     } catch (error) {
@@ -806,7 +827,7 @@ export class LevelUpExtension {
   public async selectDefaultSolution(): Promise<string> {
     try {
       const [solutions, currentSolution] = await Promise.all([
-        this.getSolutionsForPicker(),
+        this.listSolutionsForPicker(),
         this.getPreferredSolution(),
       ]);
 
@@ -847,8 +868,55 @@ export class LevelUpExtension {
     return null;
   }
 
-  public async listSolutionsForPicker(): Promise<Solution[]> {
-    return await this.getSolutionsForPicker();
+  private getCachedSolutionState(): { solutions: Solution[]; currentSolutionId: string } | null {
+    try {
+      const cached = localStorage.getItem(this.solutionsCacheKey);
+      if (!cached) return null;
+      const parsed = JSON.parse(cached) as { solutions: Solution[]; currentSolutionId: string; timestamp: number };
+      if (parsed?.solutions && parsed.timestamp && Date.now() - parsed.timestamp < this.SOLUTIONS_CACHE_DURATION_MS) {
+        return { solutions: parsed.solutions, currentSolutionId: parsed.currentSolutionId || '' };
+      }
+    } catch {
+      localStorage.removeItem(this.solutionsCacheKey);
+    }
+    return null;
+  }
+
+  private setCachedSolutionState(solutions: Solution[], currentSolutionId: string): void {
+    try {
+      localStorage.setItem(this.solutionsCacheKey, JSON.stringify({ solutions, currentSolutionId, timestamp: Date.now() }));
+    } catch {
+      // localStorage write failed — ignore
+    }
+  }
+
+  /** Returns the cached solution state immediately (no API calls). Returns null if cache is empty or expired. */
+  public getCombinedSolutionState(): { solutions: Solution[]; currentSolutionId: string } | null {
+    return this.getCachedSolutionState();
+  }
+
+  /** Fetches fresh solutions + current from the API, updates cache, returns result. */
+  public async refreshSolutionsForPicker(): Promise<{ solutions: Solution[]; currentSolutionId: string }> {
+    const [freshSolutions, currentInfo] = await Promise.all([
+      this.getSolutionsForPicker(),
+      this.getDataversePreferredSolution().catch(() => null),
+    ]);
+    const currentSolutionId = currentInfo ? this.normalizeSolutionId(currentInfo.solutionid) : '';
+    this.setCachedSolutionState(freshSolutions, currentSolutionId);
+    return { solutions: freshSolutions, currentSolutionId };
+  }
+
+  public async listSolutionsForPicker(forceRefresh = false): Promise<Solution[]> {
+    if (!forceRefresh) {
+      const cached = this.getCachedSolutionState();
+      if (cached) return cached.solutions;
+    }
+    const result = await this.refreshSolutionsForPicker();
+    return result.solutions;
+  }
+
+  public clearSolutionsCache(): void {
+    localStorage.removeItem(this.solutionsCacheKey);
   }
 
   public async setPreferredSolution(data: { solutionId: string }): Promise<string> {
@@ -866,6 +934,13 @@ export class LevelUpExtension {
     }
 
     await this.setPreferredSolutionOnServer(selectedSolution.solutionid);
+
+    // Update the cached currentSolutionId so the popup reflects the change immediately
+    const cached = this.getCachedSolutionState();
+    if (cached) {
+      this.setCachedSolutionState(cached.solutions, this.normalizeSolutionId(selectedSolution.solutionid));
+    }
+
     return `Default solution set to ${selectedSolution.friendlyname} for this environment.`;
   }
 
