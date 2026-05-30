@@ -539,11 +539,10 @@ const App: React.FC = () => {
             }}
           >
             <Box component='p' sx={{ margin: 0, fontWeight: 500 }}>
-              CompuNet Dynamics Tools is available only on Microsoft Dynamics 365/Power Apps pages.
+              Navigate to a Dynamics 365 / Power Platform site to use this extension.
             </Box>
             <Box component='p' sx={{ fontSize: '0.875rem', margin: 0 }}>
-              Open or switch to a Dynamics 365/Power Apps tab to access actions, tools, and
-              commands.
+              This extension only works on *.crm.dynamics.com pages.
             </Box>
           </Box>
         )}

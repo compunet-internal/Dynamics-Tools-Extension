@@ -34,49 +34,10 @@ async function checkContentScriptLoaded(tabId: number): Promise<boolean> {
  */
 async function isDynamics365Page(tabId: number): Promise<boolean> {
   try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        // Method 1: Check for Xrm.Utility.getGlobalContext()
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const win = window as any;
-          if (typeof window !== 'undefined' && win.Xrm?.Utility?.getGlobalContext) {
-            const version = win.Xrm.Utility.getGlobalContext().getVersion();
-            if (version && version.startsWith('9.')) {
-              return true;
-            }
-          }
-        } catch (error) {
-          // Continue with other checks if Xrm check fails
-        }
-
-        // Method 2: Check for Dynamics 365 specific script tags
-        try {
-          const scripts = Array.from(document.querySelectorAll('script[src]'));
-          const hasDynamicsScript = scripts.some(script => {
-            const src = (script as HTMLScriptElement).src;
-            return (
-              src.indexOf('/uclient/scripts') !== -1 ||
-              src.indexOf('/_static/_common/scripts/PageLoader.js') !== -1 ||
-              src.indexOf('/_static/_common/scripts/crminternalutility.js') !== -1
-            );
-          });
-
-          if (hasDynamicsScript) {
-            return true;
-          }
-        } catch (error) {
-          // Continue if script detection fails
-        }
-
-        return false;
-      },
-    });
-
-    return results && results[0] && results[0].result === true;
-  } catch (error) {
-    // If script execution fails, assume it's not a Dynamics page
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url) return false;
+    return /\.crm\d*\.dynamics\.com\//i.test(tab.url);
+  } catch {
     return false;
   }
 }

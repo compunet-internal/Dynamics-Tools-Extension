@@ -54,7 +54,7 @@ class ContentScript {
     this.loadSessionKey();
 
     // Check if we're on a Dynamics 365 page
-    const isDynamicsPage = await this.isDynamics365Page();
+    const isDynamicsPage = this.isDynamics365Page();
 
     if (isDynamicsPage) {
       // Only inject script and activate features if we're on a Dynamics page
@@ -81,41 +81,8 @@ class ContentScript {
     sessionStorage.setItem('levelup_session_key', sessionKey);
   }
 
-  private async isDynamics365Page(): Promise<boolean> {
-    // Method 1: Check for Xrm.Utility.getGlobalContext()
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const win = window as any;
-      if (typeof window !== 'undefined' && win.Xrm?.Utility?.getGlobalContext) {
-        const version = win.Xrm.Utility.getGlobalContext().getVersion();
-        if (version && version.startsWith('9.')) {
-          return true;
-        }
-      }
-    } catch (error) {
-      // Continue with other checks if Xrm check fails
-    }
-
-    // Method 2: Check for Dynamics 365 specific script tags
-    try {
-      const scripts = Array.from(document.querySelectorAll('script[src]'));
-      const hasDynamicsScript = scripts.some(script => {
-        const src = (script as HTMLScriptElement).src;
-        return (
-          src.indexOf('/uclient/scripts') !== -1 ||
-          src.indexOf('/_static/_common/scripts/PageLoader.js') !== -1 ||
-          src.indexOf('/_static/_common/scripts/crminternalutility.js') !== -1
-        );
-      });
-
-      if (hasDynamicsScript) {
-        return true;
-      }
-    } catch (error) {
-      // Continue if script detection fails
-    }
-
-    return false;
+  private isDynamics365Page(): boolean {
+    return /\.crm\d*\.dynamics\.com$/i.test(window.location.hostname);
   }
 
   private injectScript(): void {
@@ -514,7 +481,7 @@ class ContentScript {
     sendResponse: (response: ContentScriptResponse) => void
   ): Promise<void> {
     // Check if this is a Dynamics page first
-    const isDynamicsPage = await this.isDynamics365Page();
+    const isDynamicsPage = this.isDynamics365Page();
     if (!isDynamicsPage) {
       sendResponse({ success: false, pageContext: null });
       return;

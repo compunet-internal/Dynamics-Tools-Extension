@@ -1,73 +1,11 @@
-// Runtime Dynamics detection helpers (no URL-based heuristics)
-// NOTE: URL-based detection has been intentionally removed. Use runtime checks
-// against the page's Xrm global where possible.
-
-// checkDynamicsViaXrm uses chrome APIs; keep it as an exported async function
+// Dynamics detection: URL/hostname-based only.
+// The extension only supports *.crm.dynamics.com environments.
 export const checkDynamicsViaXrm = async (): Promise<boolean> => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) {
-      return false;
-    }
-
-    // Method 1: Try to use content script to check for Dynamics
-    try {
-      return await new Promise(resolve => {
-        chrome.tabs.sendMessage(tab.id!, { type: 'GET_PAGE_CONTEXT' }, response => {
-          if (chrome.runtime.lastError || !response?.success) {
-            resolve(false);
-          } else {
-            resolve(true);
-          }
-        });
-      });
-    } catch (error) {
-      // Fall through to script injection
-    }
-
-    // Method 2: Fallback - directly inject detection script (Xrm check + script tag heuristics)
-    try {
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const win = window as any;
-            if (typeof window !== 'undefined' && win.Xrm?.Utility?.getGlobalContext) {
-              try {
-                win.Xrm.Utility.getGlobalContext(); // verify callable
-                return true;
-              } catch {
-                // Xrm present but not ready, fall through to script detection
-              }
-            }
-          } catch (error) {
-            // Continue with script detection
-          }
-
-          try {
-            const scripts = Array.from(document.querySelectorAll('script[src]'));
-            const hasDynamicsScript = scripts.some(script => {
-              const src = (script as HTMLScriptElement).src;
-              return (
-                src.indexOf('/uclient/scripts') !== -1 ||
-                src.indexOf('/_static/_common/scripts/PageLoader.js') !== -1 ||
-                src.indexOf('/_static/_common/scripts/crminternalutility.js') !== -1
-              );
-            });
-
-            return hasDynamicsScript;
-          } catch (error) {
-            return false;
-          }
-        },
-      });
-
-      return results && results[0] && results[0].result === true;
-    } catch (error) {
-      return false;
-    }
-  } catch (error) {
+    if (!tab?.url) return false;
+    return /\.crm\d*\.dynamics\.com\//i.test(tab.url);
+  } catch {
     return false;
   }
 };

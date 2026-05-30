@@ -410,7 +410,7 @@ const PopupApp: React.FC = () => {
               size='small'
               variant='outlined'
               onClick={triggerContextRecheck}
-              disabled={isChecking}
+              disabled={false}
               sx={{ fontSize: '0.72rem', mt: 0.5 }}
             >
               Retry
