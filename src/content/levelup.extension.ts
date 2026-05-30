@@ -676,18 +676,9 @@ export class LevelUpExtension {
       'mspp_',
       'adx_',
       'microsoft',
-      'dynamics',
-      'crm',
-      'sales_',
-      'marketing_',
     ];
 
-    const systemFriendlyNamePrefixes = [
-      'dynamics ',
-      'microsoft ',
-      'default ',
-      'active ',
-    ];
+    const systemFriendlyNamePrefixes = ['dynamics ', 'microsoft ', 'default ', 'active '];
 
     return (
       systemUniqueNamePrefixes.some(prefix => normalizedUniqueName.startsWith(prefix)) ||
@@ -800,7 +791,9 @@ export class LevelUpExtension {
       return strictCandidates;
     }
 
-    const relaxedCandidates = mappedSolutions.filter(solution => this.canBePreferredSolution(solution));
+    const relaxedCandidates = mappedSolutions.filter(solution =>
+      this.canBePreferredSolution(solution)
+    );
     if (relaxedCandidates.length > 0) {
       return relaxedCandidates;
     }

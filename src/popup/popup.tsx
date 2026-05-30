@@ -4,14 +4,15 @@ import {
   Box,
   Typography,
   Link,
+  Button,
   Alert,
   CircularProgress,
   FormControl,
-  InputLabel,
   MenuItem,
   Select,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
 import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm } from '#utils/dynamicsDetection';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
@@ -29,8 +30,11 @@ const PopupApp: React.FC = () => {
   const [extensionConfig, setExtensionConfig] = useState<ExtensionConfig>(
     ExtensionConfigService.getConfig()
   );
-  // Optimistic UI: assume connected until check finishes
-  const [isConnected, setIsConnected] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isContextReady, setIsContextReady] = useState(false);
+  const [isSupportedHost, setIsSupportedHost] = useState<boolean | null>(null);
+  const [contextMessage, setContextMessage] = useState('');
+  const [contextCheckNonce, setContextCheckNonce] = useState(0);
   const [isChecking, setIsChecking] = useState(true);
   const [inlineToast, setInlineToast] = useState<null | {
     message: string;
@@ -38,22 +42,135 @@ const PopupApp: React.FC = () => {
   }>(null);
   const [solutions, setSolutions] = useState<SolutionOption[]>([]);
   const [selectedSolutionId, setSelectedSolutionId] = useState('');
+  const [currentSolutionId, setCurrentSolutionId] = useState('');
   const [isLoadingSolutions, setIsLoadingSolutions] = useState(false);
+  const [isSavingSolution, setIsSavingSolution] = useState(false);
+
+  const normalizeSolutionId = (solutionId: string | undefined) =>
+    (solutionId || '').replace(/[{}]/g, '').toLowerCase();
+
+  const isSupportedDynamicsHost = (url: string | undefined): boolean => {
+    if (!url) {
+      return false;
+    }
+
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      return host.endsWith('.crm.dynamics.com') && host !== 'crm.dynamics.com';
+    } catch {
+      return false;
+    }
+  };
 
   // Detect if running in Firefox
   const isFirefox =
     typeof chrome !== 'undefined' && chrome.runtime && navigator.userAgent.includes('Firefox');
 
+  const triggerContextRecheck = () => {
+    setContextCheckNonce(value => value + 1);
+  };
+
   useEffect(() => {
+    let cancelled = false;
+    let periodicRecheck: number | undefined;
+
     const checkConnection = async () => {
       setIsChecking(true);
+
       try {
-        const connected = await checkDynamicsViaXrm();
-        setIsConnected(connected);
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const supportedHost = isSupportedDynamicsHost(tab?.url);
+
+        setIsSupportedHost(supportedHost);
+
+        if (!supportedHost) {
+          if (!cancelled) {
+            setIsConnected(false);
+            setIsContextReady(false);
+            setContextMessage(
+              'Open this popup on a Dynamics page (*.crm.dynamics.com), then click Retry now. We will enable actions automatically once context is available.'
+            );
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setContextMessage(
+            'Dynamics is loading. We are checking for context in the background and will unlock actions automatically.'
+          );
+        }
+
+        const maxAttempts = 15;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (cancelled) {
+            return;
+          }
+
+          const connected = await checkDynamicsViaXrm();
+          const environmentUrl = await getEnvironmentUrlFromXrm();
+          const ready = connected && Boolean(environmentUrl);
+
+          if (ready) {
+            if (!cancelled) {
+              setIsConnected(true);
+              setIsContextReady(true);
+              setContextMessage('');
+            }
+            return;
+          }
+
+          if (!cancelled) {
+            setIsConnected(false);
+            setIsContextReady(false);
+            setContextMessage(
+              `Preparing Dynamics context... (${attempt + 1}/${maxAttempts}).`
+            );
+          }
+
+          await new Promise(resolve => window.setTimeout(resolve, 900));
+        }
+
+        if (!cancelled) {
+          setContextMessage(
+            'Still waiting for Dynamics context. Keep this popup open or click Retry now.'
+          );
+
+          periodicRecheck = window.setInterval(async () => {
+            if (cancelled) {
+              if (periodicRecheck !== undefined) {
+                window.clearInterval(periodicRecheck);
+              }
+              return;
+            }
+
+            const connected = await checkDynamicsViaXrm();
+            const environmentUrl = await getEnvironmentUrlFromXrm();
+            const ready = connected && Boolean(environmentUrl);
+
+            if (ready) {
+              setIsConnected(true);
+              setIsContextReady(true);
+              setContextMessage('');
+              setIsChecking(false);
+              if (periodicRecheck !== undefined) {
+                window.clearInterval(periodicRecheck);
+              }
+            }
+          }, 1200);
+        }
       } catch (error) {
-        setIsConnected(false);
+        if (!cancelled) {
+          setIsConnected(false);
+          setIsContextReady(false);
+          setContextMessage(
+            'We could not detect Dynamics context yet. Try refreshing the page and opening the popup again.'
+          );
+        }
       } finally {
-        setIsChecking(false);
+        if (!cancelled) {
+          setIsChecking(false);
+        }
       }
     };
 
@@ -61,8 +178,14 @@ const PopupApp: React.FC = () => {
 
     // Subscribe to config changes
     const unsubscribe = ExtensionConfigService.subscribe(setExtensionConfig);
-    return unsubscribe;
-  }, []);
+    return () => {
+      cancelled = true;
+      if (periodicRecheck !== undefined) {
+        window.clearInterval(periodicRecheck);
+      }
+      unsubscribe();
+    };
+  }, [contextCheckNonce]);
 
   const showInlineToast = (
     message: string,
@@ -103,6 +226,7 @@ const PopupApp: React.FC = () => {
     if (!isConnected) {
       setSolutions([]);
       setSelectedSolutionId('');
+      setCurrentSolutionId('');
       return;
     }
 
@@ -125,13 +249,18 @@ const PopupApp: React.FC = () => {
 
       if (currentResponse.success && currentResponse.data) {
         const current = currentResponse.data as { solutionId?: string };
-        setSelectedSolutionId(current.solutionId || loadedSolutions[0]?.solutionid || '');
+        const resolvedCurrentId = current.solutionId || loadedSolutions[0]?.solutionid || '';
+        setCurrentSolutionId(resolvedCurrentId);
+        setSelectedSolutionId(resolvedCurrentId);
       } else {
-        setSelectedSolutionId(loadedSolutions[0]?.solutionid || '');
+        const fallbackSolutionId = loadedSolutions[0]?.solutionid || '';
+        setCurrentSolutionId(fallbackSolutionId);
+        setSelectedSolutionId(fallbackSolutionId);
       }
     } catch (error) {
       setSolutions([]);
       setSelectedSolutionId('');
+      setCurrentSolutionId('');
       showInlineToast(
         `Failed to load default solution options: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'warning'
@@ -147,6 +276,7 @@ const PopupApp: React.FC = () => {
       return;
     }
 
+    setIsSavingSolution(true);
     setSelectedSolutionId(nextSolutionId);
 
     try {
@@ -158,6 +288,7 @@ const PopupApp: React.FC = () => {
         throw new Error(response.error || 'Failed to set preferred solution');
       }
 
+      setCurrentSolutionId(nextSolutionId);
       showInlineToast('Default solution updated', 'success');
       await refreshSolutionDropdown();
     } catch (error) {
@@ -166,6 +297,8 @@ const PopupApp: React.FC = () => {
         'error'
       );
       await refreshSolutionDropdown();
+    } finally {
+      setIsSavingSolution(false);
     }
   };
 
@@ -233,10 +366,10 @@ const PopupApp: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isConnected && extensionConfig.showNavigationSection) {
+    if (isContextReady && isConnected && extensionConfig.showNavigationSection) {
       void refreshSolutionDropdown();
     }
-  }, [isConnected, extensionConfig.showNavigationSection]);
+  }, [isConnected, isContextReady, extensionConfig.showNavigationSection]);
 
   // removed skeleton and early not-connected returns — always render full UI
 
@@ -309,6 +442,128 @@ const PopupApp: React.FC = () => {
             <CircularProgress size={18} />
           </Box>
         )}
+
+        {!isContextReady && (
+          <Box
+            sx={{
+              mt: 0.5,
+              p: 1.25,
+              borderRadius: '8px',
+              border: theme => `1px solid ${theme.palette.divider}`,
+              backgroundColor: theme =>
+                theme.palette.mode === 'dark'
+                  ? theme.palette.background.paper
+                  : 'rgba(255,255,255,0.88)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.75,
+            }}
+          >
+            <Typography variant='subtitle2' sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
+              {isSupportedHost === false ? 'Open on a Dynamics Page' : 'Waiting for Dynamics Context'}
+            </Typography>
+            <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.35 }}>
+              {contextMessage}
+            </Typography>
+            {isSupportedHost !== false && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <CircularProgress size={14} />
+                <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                  Rechecking every second...
+                </Typography>
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography sx={{ fontSize: '0.67rem', color: 'text.secondary' }}>
+                {isSupportedHost === false
+                  ? 'Supported host: *.crm.dynamics.com'
+                  : 'If this takes too long, refresh the Dynamics page.'}
+              </Typography>
+              <Button
+                size='small'
+                variant='text'
+                onClick={triggerContextRecheck}
+                disabled={isChecking}
+                sx={{ minWidth: 0, fontSize: '0.67rem', px: 0.75, py: 0.2 }}
+              >
+                Retry now
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {isContextReady && (
+          <>
+
+        {/* Default solution selector moved to top of popup */}
+        {extensionConfig.showNavigationSection && (
+          <Box sx={{ mb: 1.5 }}>
+            <Typography
+              variant='subtitle2'
+              sx={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                mb: 0.5,
+                color: 'text.primary',
+                textTransform: 'uppercase',
+                letterSpacing: '0.3px',
+                opacity: 0.8,
+              }}
+            >
+              Default Solution
+            </Typography>
+            <Box
+              sx={{
+                p: 0.5,
+                backgroundColor: theme =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.background.paper
+                    : 'rgba(255,255,255,0.85)',
+                borderRadius: '6px',
+                border: theme => `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <FormControl
+                fullWidth
+                size='small'
+                disabled={isLoadingSolutions || isSavingSolution || !isConnected}
+              >
+                <Select
+                  value={selectedSolutionId}
+                  onChange={handleDefaultSolutionChange}
+                >
+                  {solutions.length === 0 && (
+                    <MenuItem value='' disabled>
+                      {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
+                    </MenuItem>
+                  )}
+                  {solutions.map(solution => {
+                    const isCurrent =
+                      normalizeSolutionId(solution.solutionid) === normalizeSolutionId(currentSolutionId);
+
+                    return (
+                      <MenuItem key={solution.solutionid} value={solution.solutionid}>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1,
+                          }}
+                        >
+                          <span>{solution.friendlyname}</span>
+                          {isCurrent && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        )}
+
         {/* Form Actions */}
         {extensionConfig.showFormSection && (
           <Box sx={{ mb: 1.5 }}>
@@ -434,39 +689,6 @@ const PopupApp: React.FC = () => {
             >
               Navigation
             </Typography>
-            <Box
-              sx={{
-                mb: 0.6,
-                p: 0.5,
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.background.paper
-                    : 'rgba(255,255,255,0.85)',
-                borderRadius: '6px',
-                border: theme => `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <FormControl fullWidth size='small' disabled={isLoadingSolutions || !isConnected}>
-                <InputLabel id='default-solution-label'>Default Solution</InputLabel>
-                <Select
-                  labelId='default-solution-label'
-                  value={selectedSolutionId}
-                  label='Default Solution'
-                  onChange={handleDefaultSolutionChange}
-                >
-                  {solutions.length === 0 && (
-                    <MenuItem value='' disabled>
-                      {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
-                    </MenuItem>
-                  )}
-                  {solutions.map(solution => (
-                    <MenuItem key={solution.solutionid} value={solution.solutionid}>
-                      {solution.friendlyname}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
             <Box
               sx={{
                 display: 'grid',
@@ -621,6 +843,8 @@ const PopupApp: React.FC = () => {
               </Link>
             </Box>
           </Box>
+        )}
+          </>
         )}
       </Box>
     </Box>
