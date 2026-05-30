@@ -456,9 +456,12 @@ export class LevelUpExtension {
 
   private async handleFormAction(actionName: FormActionName, data: unknown): Promise<unknown> {
     const isFormCtx = DynamicsUtils.isFormContext();
+    const isListCtx = DynamicsUtils.isListContext();
 
-    if (isFormCtx) {
-      // Handle all form actions through the FormActions class
+    // Some actions only need an entity name and work fine from list views too
+    const listCompatibleActions: string[] = ['open-table-editor', 'table-processes'];
+
+    if (isFormCtx || (isListCtx && listCompatibleActions.includes(actionName as string))) {
       return this.executeActionMethod(
         this.formActions,
         this.getFormActionMappings(),
@@ -466,7 +469,6 @@ export class LevelUpExtension {
         data
       );
     } else {
-      // Return a user-friendly error message instead of throwing
       return {
         error:
           'Form actions can only be used in the context of a form. You are currently on a different page type.',

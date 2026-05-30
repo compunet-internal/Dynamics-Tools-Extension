@@ -6,7 +6,7 @@ import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { messageService } from '#services/MessageService';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
 import { ThemeProvider } from '#contexts/ThemeContext';
-import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm } from '#utils/dynamicsDetection';
+import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm, getPageTypeFromTab } from '#utils/dynamicsDetection';
 import { formActions, navigationActions, debuggingActions } from '#config/actions';
 import ThemeSwitchButtons from '#components/ThemeSwitchButtons';
 import ExtendedDisplayModeSelector from '#components/ExtendedDisplayModeSelector';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
   const [recordId, setRecordId] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [isFormContext, setIsFormContext] = useState(false);
   const [extensionConfig, setExtensionConfig] = useState<ExtensionConfig>(
     ExtensionConfigService.getConfig()
   );
@@ -134,8 +135,11 @@ const App: React.FC = () => {
       if (connected) {
         const env = await getEnvironmentUrlFromXrm();
         setEnvironmentUrl(env ? new URL(env).hostname : '');
+        const pageType = await getPageTypeFromTab();
+        setIsFormContext(pageType === 'entityrecord');
       } else {
         setEnvironmentUrl('');
+        setIsFormContext(false);
       }
     };
 
@@ -494,6 +498,7 @@ const App: React.FC = () => {
                     onActionClick={handleActionClick}
                     onFavoriteToggle={handleFavoriteToggle}
                     favoriteIds={favoriteIds}
+                    isFormContext={isFormContext}
                   />
                 )}
                 {extensionConfig.showNavigationSection !== false &&

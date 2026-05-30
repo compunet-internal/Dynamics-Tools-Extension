@@ -34,9 +34,11 @@ export const checkDynamicsViaXrm = async (): Promise<boolean> => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const win = window as any;
             if (typeof window !== 'undefined' && win.Xrm?.Utility?.getGlobalContext) {
-              const version = win.Xrm.Utility.getGlobalContext().getVersion();
-              if (version && version.startsWith('9.')) {
+              try {
+                win.Xrm.Utility.getGlobalContext(); // verify callable
                 return true;
+              } catch {
+                // Xrm present but not ready, fall through to script detection
               }
             }
           } catch (error) {
@@ -82,6 +84,19 @@ export const getEnvironmentUrlFromXrm = async (): Promise<string> => {
       return '';
     }
 
+    // Primary: extract from tab URL directly — no extra permissions needed
+    if (tab.url) {
+      try {
+        const parsed = new URL(tab.url);
+        const host = parsed.hostname.toLowerCase();
+        if (/^[^.]+\.crm\d*\.dynamics\.com$/.test(host)) {
+          return parsed.origin;
+        }
+      } catch {
+        // fall through to executeScript
+      }
+    }
+
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -117,4 +132,21 @@ export const getEnvironmentUrlFromXrm = async (): Promise<string> => {
   }
 
   return '';
+};
+
+/**
+ * Returns the current page type ('entityrecord', 'entitylist', or null)
+ * by reading the `pagetype` query parameter from the active tab URL.
+ * This is instant and requires no content script communication.
+ */
+export const getPageTypeFromTab = async (): Promise<'entityrecord' | 'entitylist' | null> => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url) return null;
+    const pageType = new URL(tab.url).searchParams.get('pagetype');
+    if (pageType === 'entityrecord' || pageType === 'entitylist') return pageType;
+    return null;
+  } catch {
+    return null;
+  }
 };

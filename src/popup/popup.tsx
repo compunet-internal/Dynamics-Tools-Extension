@@ -10,6 +10,8 @@ import {
   FormControl,
   MenuItem,
   Select,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -35,7 +37,6 @@ const PopupApp: React.FC = () => {
   const [isSupportedHost, setIsSupportedHost] = useState<boolean | null>(null);
   const [contextMessage, setContextMessage] = useState('');
   const [contextCheckNonce, setContextCheckNonce] = useState(0);
-  const [isChecking, setIsChecking] = useState(true);
   const [inlineToast, setInlineToast] = useState<null | {
     message: string;
     severity: 'success' | 'info' | 'warning' | 'error';
@@ -57,7 +58,7 @@ const PopupApp: React.FC = () => {
     try {
       const parsed = new URL(url);
       const host = parsed.hostname.toLowerCase();
-      return host.endsWith('.crm.dynamics.com') && host !== 'crm.dynamics.com';
+      return /^[^.]+\.crm\d*\.dynamics\.com$/.test(host);
     } catch {
       return false;
     }
@@ -73,11 +74,8 @@ const PopupApp: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    let periodicRecheck: number | undefined;
 
     const checkConnection = async () => {
-      setIsChecking(true);
-
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const supportedHost = isSupportedDynamicsHost(tab?.url);
@@ -95,67 +93,13 @@ const PopupApp: React.FC = () => {
           return;
         }
 
+        // URL already confirms this is a Dynamics page — mark ready immediately.
+        // The environment URL is derived from the tab URL so no Xrm polling needed.
+        const environmentUrl = await getEnvironmentUrlFromXrm();
         if (!cancelled) {
-          setContextMessage(
-            'Dynamics is loading. We are checking for context in the background and will unlock actions automatically.'
-          );
-        }
-
-        const maxAttempts = 15;
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          if (cancelled) {
-            return;
-          }
-
-          const connected = await checkDynamicsViaXrm();
-          const environmentUrl = await getEnvironmentUrlFromXrm();
-          const ready = connected && Boolean(environmentUrl);
-
-          if (ready) {
-            if (!cancelled) {
-              setIsConnected(true);
-              setIsContextReady(true);
-              setContextMessage('');
-            }
-            return;
-          }
-
-          if (!cancelled) {
-            setIsConnected(false);
-            setIsContextReady(false);
-            setContextMessage(`Preparing Dynamics context... (${attempt + 1}/${maxAttempts}).`);
-          }
-
-          await new Promise(resolve => window.setTimeout(resolve, 900));
-        }
-
-        if (!cancelled) {
-          setContextMessage(
-            'Still waiting for Dynamics context. Keep this popup open or click Retry now.'
-          );
-
-          periodicRecheck = window.setInterval(async () => {
-            if (cancelled) {
-              if (periodicRecheck !== undefined) {
-                window.clearInterval(periodicRecheck);
-              }
-              return;
-            }
-
-            const connected = await checkDynamicsViaXrm();
-            const environmentUrl = await getEnvironmentUrlFromXrm();
-            const ready = connected && Boolean(environmentUrl);
-
-            if (ready) {
-              setIsConnected(true);
-              setIsContextReady(true);
-              setContextMessage('');
-              setIsChecking(false);
-              if (periodicRecheck !== undefined) {
-                window.clearInterval(periodicRecheck);
-              }
-            }
-          }, 1200);
+          setIsConnected(true);
+          setIsContextReady(true);
+          setContextMessage('');
         }
       } catch (error) {
         if (!cancelled) {
@@ -166,9 +110,7 @@ const PopupApp: React.FC = () => {
           );
         }
       } finally {
-        if (!cancelled) {
-          setIsChecking(false);
-        }
+        // detection complete
       }
     };
 
@@ -178,9 +120,6 @@ const PopupApp: React.FC = () => {
     const unsubscribe = ExtensionConfigService.subscribe(setExtensionConfig);
     return () => {
       cancelled = true;
-      if (periodicRecheck !== undefined) {
-        window.clearInterval(periodicRecheck);
-      }
       unsubscribe();
     };
   }, [contextCheckNonce]);
@@ -343,6 +282,11 @@ const PopupApp: React.FC = () => {
     }
   };
 
+  const handleHideDeprecatedToggle = async (checked: boolean) => {
+    await ExtensionConfigService.updateConfig({ hideDeprecatedColumns: checked });
+    setExtensionConfig(ExtensionConfigService.getConfig());
+  };
+
   const switchDisplayModeAndOpenSidebar = async (mode: ExtensionDisplayMode) => {
     try {
       console.log('Switching to display mode:', mode);
@@ -434,61 +378,43 @@ const PopupApp: React.FC = () => {
             </Alert>
           </Box>
         )}
-        {/* Optimistic check spinner (small) */}
-        {isChecking && (
-          <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 30 }}>
-            <CircularProgress size={18} />
-          </Box>
-        )}
 
         {!isContextReady && (
           <Box
             sx={{
-              mt: 0.5,
-              p: 1.25,
-              borderRadius: '8px',
-              border: theme => `1px solid ${theme.palette.divider}`,
-              backgroundColor: theme =>
-                theme.palette.mode === 'dark'
-                  ? theme.palette.background.paper
-                  : 'rgba(255,255,255,0.88)',
+              mt: 1,
               display: 'flex',
               flexDirection: 'column',
-              gap: 0.75,
+              alignItems: 'center',
+              gap: 1.5,
+              py: 2,
             }}
           >
-            <Typography variant='subtitle2' sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
-              {isSupportedHost === false
-                ? 'Open on a Dynamics Page'
-                : 'Waiting for Dynamics Context'}
+            {isSupportedHost !== false ? (
+              <CircularProgress size={28} />
+            ) : null}
+            <Typography
+              variant='subtitle2'
+              sx={{ fontWeight: 700, fontSize: '0.85rem', textAlign: 'center' }}
+            >
+              {isSupportedHost === false ? 'Open on a Dynamics page' : 'Detecting Dynamics...'}
             </Typography>
-            <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.35 }}>
-              {contextMessage}
-            </Typography>
-            {isSupportedHost !== false && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <CircularProgress size={14} />
-                <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                  Rechecking every second...
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography sx={{ fontSize: '0.67rem', color: 'text.secondary' }}>
-                {isSupportedHost === false
-                  ? 'Supported host: *.crm.dynamics.com'
-                  : 'If this takes too long, refresh the Dynamics page.'}
-              </Typography>
-              <Button
-                size='small'
-                variant='text'
-                onClick={triggerContextRecheck}
-                disabled={isChecking}
-                sx={{ minWidth: 0, fontSize: '0.67rem', px: 0.75, py: 0.2 }}
+            {contextMessage ? (
+              <Typography
+                sx={{ fontSize: '0.72rem', color: 'text.secondary', textAlign: 'center', lineHeight: 1.4 }}
               >
-                Retry now
-              </Button>
-            </Box>
+                {contextMessage}
+              </Typography>
+            ) : null}
+            <Button
+              size='small'
+              variant='outlined'
+              onClick={triggerContextRecheck}
+              disabled={isChecking}
+              sx={{ fontSize: '0.72rem', mt: 0.5 }}
+            >
+              Retry
+            </Button>
           </Box>
         )}
 
@@ -527,7 +453,11 @@ const PopupApp: React.FC = () => {
                     size='small'
                     disabled={isLoadingSolutions || isSavingSolution || !isConnected}
                   >
-                    <Select value={selectedSolutionId} onChange={handleDefaultSolutionChange}>
+                    <Select
+                      value={selectedSolutionId}
+                      onChange={handleDefaultSolutionChange}
+                      sx={{ '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }}
+                    >
                       {solutions.length === 0 && (
                         <MenuItem value='' disabled>
                           {isLoadingSolutions ? 'Loading solutions...' : 'No solutions available'}
@@ -547,11 +477,12 @@ const PopupApp: React.FC = () => {
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 gap: 1,
+                                minWidth: 0,
                               }}
                             >
-                              <span>{solution.friendlyname}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{solution.friendlyname}</span>
                               {isCurrent && (
-                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }} />
                               )}
                             </Box>
                           </MenuItem>
@@ -782,6 +713,21 @@ const PopupApp: React.FC = () => {
                   borderTop: theme => `1px solid ${theme.palette.divider}`,
                 }}
               >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size='small'
+                      checked={extensionConfig.hideDeprecatedColumns !== false}
+                      onChange={e => handleHideDeprecatedToggle(e.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                      Hide deprecated (zz) columns
+                    </Typography>
+                  }
+                  sx={{ mx: 0, mb: 0.5, justifyContent: 'center' }}
+                />
                 <Typography
                   variant='caption'
                   sx={{

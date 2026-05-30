@@ -66,6 +66,45 @@ export class DynamicsUtils {
   }
 
   /**
+   * Check if current context is an entity list (grid/view) page
+   */
+  static isListContext(): boolean {
+    if (typeof Xrm === 'undefined') return false;
+    try {
+      const pageContext = Xrm.Utility?.getPageContext?.();
+      return pageContext?.input?.pageType === 'entitylist';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get entity name from either form or list context.
+   * Returns null if neither context is available.
+   */
+  static getEntityNameFromContext(): string | null {
+    if (typeof Xrm === 'undefined') return null;
+
+    // Form context
+    try {
+      const name = Xrm.Page?.data?.entity?.getEntityName?.();
+      if (name) return name;
+    } catch {
+      // continue
+    }
+
+    // Modern page context (entityrecord or entitylist)
+    try {
+      const input = Xrm.Utility?.getPageContext?.()?.input as Record<string, unknown> | undefined;
+      if (input?.entityName && typeof input.entityName === 'string') return input.entityName;
+    } catch {
+      // continue
+    }
+
+    return null;
+  }
+
+  /**
    * Convert logical entity name to Web API entity set name
    */
   static getEntityCollectionName(entityName: string): string {

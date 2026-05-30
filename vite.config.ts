@@ -197,15 +197,6 @@ export default defineConfig({
     exclude: ['chrome'],
   },
 
-  // Enable better tree-shaking but preserve debugging in development
-  esbuild: {
-    treeShaking: true,
-    minifyIdentifiers: process.env.NODE_ENV === 'production',
-    minifySyntax: process.env.NODE_ENV === 'production',
-    minifyWhitespace: process.env.NODE_ENV === 'production',
-    keepNames: process.env.NODE_ENV === 'development',
-  },
-
   // Additional optimization for Material-UI
   ssr: {
     noExternal: ['@mui/material', '@mui/icons-material'],

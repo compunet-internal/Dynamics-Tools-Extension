@@ -32,6 +32,7 @@ interface ActionButton {
   onTooltipOpen?: () => void;
   category?: 'common' | 'advanced';
   priority?: number;
+  requiresFormContext?: boolean;
 }
 
 interface ActionSectionProps {
@@ -41,6 +42,7 @@ interface ActionSectionProps {
   onFavoriteToggle: (id: DynamicsAction) => void;
   favoriteIds: DynamicsAction[];
   sectionColor?: 'form' | 'navigation' | 'debugging';
+  isFormContext?: boolean;
 }
 
 const ActionSectionComponent: React.FC<ActionSectionProps> = ({
@@ -50,6 +52,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
   onFavoriteToggle,
   favoriteIds,
   sectionColor = 'form',
+  isFormContext = false,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -314,21 +317,25 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
             {filteredButtons.length > 0 ? (
               viewMode === 'grid' ? (
                 <StandardActionGrid>
-                  {filteredButtons.map(button => (
-                    <StandardActionButton
-                      key={button.id}
-                      id={button.id}
-                      label={button.label}
-                      icon={button.icon}
-                      tooltip={button.tooltip}
-                      onTooltipOpen={button.onTooltipOpen}
-                      onClick={() => onActionClick(button.id)}
-                      isFavorite={favoriteIds.includes(button.id)}
-                      onFavoriteToggle={() => onFavoriteToggle(button.id)}
-                      showFavorite={true}
-                      showLabel={true}
-                    />
-                  ))}
+                  {filteredButtons.map(button => {
+                    const available = button.requiresFormContext ? isFormContext : true;
+                    return (
+                      <StandardActionButton
+                        key={button.id}
+                        id={button.id}
+                        label={button.label}
+                        icon={button.icon}
+                        tooltip={button.tooltip}
+                        onTooltipOpen={button.onTooltipOpen}
+                        onClick={() => onActionClick(button.id)}
+                        isFavorite={favoriteIds.includes(button.id)}
+                        onFavoriteToggle={() => onFavoriteToggle(button.id)}
+                        showFavorite={true}
+                        showLabel={true}
+                        available={available}
+                      />
+                    );
+                  })}
                 </StandardActionGrid>
               ) : (
                 <Box
@@ -340,16 +347,20 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                     maxWidth: '100%',
                   }}
                 >
-                  {filteredButtons.map(button => (
-                    <ActionButtonList
-                      key={button.id}
-                      button={button}
-                      isFavorite={favoriteIds.includes(button.id)}
-                      onActionClick={onActionClick}
-                      onFavoriteToggle={onFavoriteToggle}
-                      sectionColor={sectionColor}
-                    />
-                  ))}
+                  {filteredButtons.map(button => {
+                    const available = button.requiresFormContext ? isFormContext : true;
+                    return (
+                      <ActionButtonList
+                        key={button.id}
+                        button={button}
+                        isFavorite={favoriteIds.includes(button.id)}
+                        onActionClick={onActionClick}
+                        onFavoriteToggle={onFavoriteToggle}
+                        sectionColor={sectionColor}
+                        available={available}
+                      />
+                    );
+                  })}
                 </Box>
               )
             ) : null}
@@ -479,7 +490,8 @@ const ActionButtonList: React.FC<{
   onActionClick: (id: DynamicsAction) => void;
   onFavoriteToggle: (id: DynamicsAction) => void;
   sectionColor: 'form' | 'navigation' | 'debugging';
-}> = ({ button, isFavorite, onActionClick, onFavoriteToggle }) => {
+  available?: boolean;
+}> = ({ button, isFavorite, onActionClick, onFavoriteToggle, available = true }) => {
   return (
     <Box
       sx={{
@@ -496,6 +508,7 @@ const ActionButtonList: React.FC<{
         width: '100%',
         maxWidth: '100%',
         minWidth: 0,
+        opacity: available ? 1 : 0.4,
         '&:hover': {
           backgroundColor: 'action.hover',
           borderColor: 'divider',

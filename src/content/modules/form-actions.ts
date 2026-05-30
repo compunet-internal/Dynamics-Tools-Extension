@@ -647,10 +647,9 @@ export class FormActions {
    * Open the Power Apps Maker table/entity editor for the current record type
    */
   async openTableEditor(): Promise<string> {
-    const xrm = this.getXrm();
-
     try {
-      const entityName = xrm.Page.data.entity.getEntityName();
+      const entityName = DynamicsUtils.getEntityNameFromContext();
+      if (!entityName) throw new Error('Could not determine entity name from current page context.');
       const globalContext = Xrm.Utility.getGlobalContext();
       const orgSettings = globalContext.organizationSettings as Xrm.OrganizationSettings & {
         environmentId?: string;
@@ -686,10 +685,10 @@ export class FormActions {
    * Show table processes (workflows, business rules, BPFs, custom APIs, actions) in a dual-pane dialog
    */
   async showTableProcesses(): Promise<string> {
-    const xrm = this.getXrm();
     try {
       const webApiClient = WebApiClient.getInstance();
-      const entityName = xrm.Page.data.entity.getEntityName();
+      const entityName = DynamicsUtils.getEntityNameFromContext();
+      if (!entityName) throw new Error('Could not determine entity name from current page context.');
       const environmentId = Xrm.Utility.getGlobalContext().organizationSettings.bapEnvironmentId;
 
       // Get solution information using the reusable method

@@ -48,6 +48,8 @@ export interface ActionConfig {
   // Optional short label and short icon (emoji or short text) for compact UIs like popup
   shortLabel?: string;
   shortIcon?: string;
+  // When true the action requires an active form (entityrecord) to function
+  requiresFormContext?: boolean;
 }
 
 export const formActions: ActionConfig[] = [
@@ -59,6 +61,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Logical',
     shortIcon: '🏷️',
+    requiresFormContext: true,
   },
   {
     id: 'form:clear-logical-names',
@@ -68,6 +71,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Clear',
     shortIcon: '🧹',
+    requiresFormContext: true,
   },
   {
     id: 'form:god-mode',
@@ -77,6 +81,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'God Mode',
     shortIcon: '⚡',
+    requiresFormContext: true,
   },
   {
     id: 'form:changed-fields',
@@ -86,6 +91,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Changed Fields',
     shortIcon: '🔄',
+    requiresFormContext: true,
   },
   {
     id: 'form:record-url',
@@ -95,6 +101,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'URL',
     shortIcon: '🔗',
+    requiresFormContext: true,
   },
   {
     id: 'form:record-id',
@@ -104,6 +111,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'ID',
     shortIcon: '🆔',
+    requiresFormContext: true,
   },
   {
     id: 'form:open-web-api',
@@ -113,6 +121,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'API',
     shortIcon: '🌐',
+    requiresFormContext: true,
   },
   {
     id: 'form:refresh-subgrids',
@@ -122,6 +131,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Refresh Subgrid',
     shortIcon: '🔃',
+    requiresFormContext: true,
   },
   {
     id: 'form:show-optionset-values',
@@ -131,6 +141,7 @@ export const formActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'OptionSet',
     shortIcon: '⚙️',
+    requiresFormContext: true,
   },
   {
     id: 'form:clone-record',
@@ -140,6 +151,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Clone',
     shortIcon: '📄',
+    requiresFormContext: true,
   },
   {
     id: 'form:refresh-autosave-off',
@@ -149,6 +161,7 @@ export const formActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Refresh',
     shortIcon: '🔃',
+    requiresFormContext: true,
   },
   {
     id: 'form:all-fields',
@@ -158,6 +171,7 @@ export const formActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'All Fields',
     shortIcon: '📊',
+    requiresFormContext: true,
   },
   {
     id: 'form:open-editor',
@@ -167,6 +181,7 @@ export const formActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Form Edit',
     shortIcon: '✏️',
+    requiresFormContext: true,
   },
   {
     id: 'form:open-table-editor',

@@ -16,6 +16,8 @@ export interface StandardActionButtonProps {
   showLabel?: boolean; // Whether to show label below button
   favoriteVariant?: 'default' | 'subtle';
   favoriteIcon?: React.ComponentType<any>;
+  /** When false the button is rendered dimmed to indicate it is not available in the current context */
+  available?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ const StandardActionButton: React.FC<StandardActionButtonProps> = ({
   showLabel = true,
   favoriteVariant = 'default',
   favoriteIcon,
+  available = true,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -52,13 +55,17 @@ const StandardActionButton: React.FC<StandardActionButtonProps> = ({
         alignItems: 'center',
         textAlign: 'center',
         position: 'relative',
+        opacity: available ? 1 : 0.4,
+        transition: 'opacity 0.2s ease-in-out',
       }}
     >
       <Box sx={{ position: 'relative' }}>
         <Tooltip
           onOpen={onTooltipOpen}
           title={
-            additionalInfo ? (
+            !available ? (
+              `${tooltip || label} — requires an open form`
+            ) : additionalInfo ? (
               <Box>
                 <Typography variant='caption' sx={{ fontWeight: 600 }}>
                   {tooltip || label}

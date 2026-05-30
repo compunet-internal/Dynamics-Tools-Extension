@@ -14,6 +14,7 @@ export interface ExtensionConfig {
   showFormSection?: boolean;
   showNavigationSection?: boolean;
   showDebuggingSection?: boolean;
+  hideDeprecatedColumns?: boolean;
 }
 
 const DEFAULT_CONFIG: ExtensionConfig = {
@@ -27,6 +28,7 @@ const DEFAULT_CONFIG: ExtensionConfig = {
   showFormSection: true,
   showNavigationSection: true,
   showDebuggingSection: true,
+  hideDeprecatedColumns: true,
 };
 
 const DISPLAY_MODE_CONFIGS: Record<ExtensionDisplayMode, Partial<ExtensionConfig>> = {
@@ -40,6 +42,7 @@ const DISPLAY_MODE_CONFIGS: Record<ExtensionDisplayMode, Partial<ExtensionConfig
     showFormSection: true,
     showNavigationSection: true,
     showDebuggingSection: true,
+    hideDeprecatedColumns: true,
   },
   simple: {
     showRecentlyUsed: false,
@@ -51,6 +54,7 @@ const DISPLAY_MODE_CONFIGS: Record<ExtensionDisplayMode, Partial<ExtensionConfig
     showFormSection: true,
     showNavigationSection: true,
     showDebuggingSection: false,
+    hideDeprecatedColumns: true,
   },
 };
 

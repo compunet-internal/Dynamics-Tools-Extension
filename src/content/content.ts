@@ -59,6 +59,7 @@ class ContentScript {
     if (isDynamicsPage) {
       // Only inject script and activate features if we're on a Dynamics page
       this.injectScript();
+      this.setupColumnPickerFilter();
     } else {
       // eslint-disable-next-line no-console
       console.debug(
@@ -432,6 +433,81 @@ class ContentScript {
     };
 
     window.addEventListener('message', responseListener);
+  }
+
+  private setupColumnPickerFilter(): void {
+    const STORAGE_KEY = 'levelup_extension_config';
+    let hideEnabled = true;
+
+    /** Returns the display label for a .ms-List-cell, regardless of tab (Opportunity or Related). */
+    const getCellLabel = (cell: Element): string => {
+      // Opportunity tab: label.ms-Label
+      const msLabel = cell.querySelector('label.ms-Label');
+      if (msLabel) return (msLabel.textContent ?? '').trim();
+      // Related tab: [role="treeitem"] carries the label in its title / aria-label
+      const treeItem = cell.querySelector('[role="treeitem"]');
+      if (treeItem) return (treeItem.getAttribute('title') ?? treeItem.getAttribute('aria-label') ?? '').trim();
+      return '';
+    };
+
+    const isZzCell = (cell: Element): boolean =>
+      /^zz/i.test(getCellLabel(cell));
+
+    const applyVisibility = (enabled: boolean) => {
+      document.querySelectorAll('.ms-List-cell').forEach(cell => {
+        if (isZzCell(cell)) {
+          (cell as HTMLElement).style.display = enabled ? 'none' : '';
+        }
+      });
+    };
+
+    const hideZzCells = (root: Document | Element) => {
+      if (!hideEnabled) return;
+      root.querySelectorAll('.ms-List-cell').forEach(cell => {
+        if (isZzCell(cell)) {
+          (cell as HTMLElement).style.display = 'none';
+        }
+      });
+    };
+
+    // Read initial config
+    chrome.storage.local.get([STORAGE_KEY], result => {
+      const config = result[STORAGE_KEY] as { hideDeprecatedColumns?: boolean } | undefined;
+      hideEnabled = config?.hideDeprecatedColumns !== false;
+      applyVisibility(hideEnabled);
+    });
+
+    // React to config changes (e.g. toggle in popup)
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes[STORAGE_KEY]) {
+        const newConfig = changes[STORAGE_KEY].newValue as
+          | { hideDeprecatedColumns?: boolean }
+          | undefined;
+        hideEnabled = newConfig?.hideDeprecatedColumns !== false;
+        applyVisibility(hideEnabled);
+      }
+    });
+
+    const observer = new MutationObserver(mutations => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const el = node as Element;
+              if (el.classList?.contains('ms-List-cell')) {
+                if (hideEnabled && isZzCell(el)) {
+                  (el as HTMLElement).style.display = 'none';
+                }
+              } else if (el.querySelector?.('.ms-List-cell')) {
+                hideZzCells(el);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   private async handleGetPageContext(
