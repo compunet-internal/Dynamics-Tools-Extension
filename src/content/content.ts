@@ -34,9 +34,18 @@ interface ContentScriptResponse extends DynamicsResponse {
   pageContext?: unknown;
 }
 
+/** Actions that open a new tab/window — deduplicated at the content-script level. */
+const TAB_OPENING_ACTIONS = new Set([
+  'form:open-editor',
+  'form:open-table-editor',
+  'form:open-web-api',
+]);
+
 class ContentScript {
   private injectedScript: HTMLScriptElement | null = null;
   private sessionKey: string | null = null;
+  /** Timestamps of last dispatch for tab-opening actions, keyed by action name. */
+  private lastDispatchTime: Map<string, number> = new Map();
 
   constructor() {
     // debug: print hostname so we can see where the content script runs
@@ -232,8 +241,8 @@ class ContentScript {
       }
 
       if (event.data.type === 'LEVELUP_RESPONSE') {
-        chrome.runtime.sendMessage(event.data);
-        // Response received from injected script
+        // Forward to background (best-effort). Background may be asleep in MV3 — suppress the rejection.
+        chrome.runtime.sendMessage(event.data).catch(() => {});
       }
     });
   }
@@ -242,6 +251,19 @@ class ContentScript {
     message: ActionMessage,
     sendResponse: (response: DynamicsResponse) => void
   ): void {
+    // Prevent duplicate tab-opening actions within a short window.
+    // Use 15 000 ms — longer than the 8 000 ms forwardActionToInjectedScript timeout —
+    // so a timed-out first call cannot race with a user re-click before it finishes.
+    if (TAB_OPENING_ACTIONS.has(message.action)) {
+      const now = Date.now();
+      const last = this.lastDispatchTime.get(message.action) ?? 0;
+      if (now - last < 15_000) {
+        sendResponse({ success: true, data: 'Duplicate action suppressed' });
+        return;
+      }
+      this.lastDispatchTime.set(message.action, now);
+    }
+
     void (async () => {
       let response = await this.forwardActionToInjectedScript(message);
 
@@ -265,8 +287,16 @@ class ContentScript {
         }
       }
 
+      // On success, clear the dedup timer so the action can be used again promptly.
+      if (response.success && TAB_OPENING_ACTIONS.has(message.action)) {
+        this.lastDispatchTime.delete(message.action);
+      }
+
       sendResponse(response);
     })().catch(error => {
+      if (TAB_OPENING_ACTIONS.has(message.action)) {
+        this.lastDispatchTime.delete(message.action);
+      }
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -415,12 +445,12 @@ class ContentScript {
       if (msLabel) return (msLabel.textContent ?? '').trim();
       // Related tab: [role="treeitem"] carries the label in its title / aria-label
       const treeItem = cell.querySelector('[role="treeitem"]');
-      if (treeItem) return (treeItem.getAttribute('title') ?? treeItem.getAttribute('aria-label') ?? '').trim();
+      if (treeItem)
+        return (treeItem.getAttribute('title') ?? treeItem.getAttribute('aria-label') ?? '').trim();
       return '';
     };
 
-    const isZzCell = (cell: Element): boolean =>
-      /^zz/i.test(getCellLabel(cell));
+    const isZzCell = (cell: Element): boolean => /^zz/i.test(getCellLabel(cell));
 
     const applyVisibility = (enabled: boolean) => {
       document.querySelectorAll('.ms-List-cell').forEach(cell => {

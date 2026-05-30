@@ -611,6 +611,14 @@ export class FormActions {
    * Open the Power Platform form editor for the current record
    */
   async openFormEditor(): Promise<string> {
+    // Deduplicate: block re-entry within 15 s (longer than the 8 s content-script timeout)
+    const COOLDOWN_MS = 15_000;
+    const lastAt: number = (window as any).__levelUpLastOpenEditorAt ?? 0;
+    if (Date.now() - lastAt < COOLDOWN_MS) {
+      return 'Form editor already opening';
+    }
+    (window as any).__levelUpLastOpenEditorAt = Date.now();
+
     const xrm = this.getXrm();
     try {
       const entityName = xrm.Page.data.entity.getEntityName();
@@ -629,6 +637,9 @@ export class FormActions {
       // Open the form editor in a new tab
       Xrm.Navigation.openUrl(formEditorUrl);
 
+      // Allow re-triggering now that the URL has been opened successfully
+      (window as any).__levelUpLastOpenEditorAt = 0;
+
       // Return success message
       let successMessage = `Form editor opened for ${entityName} in solution: ${solutionInfo.solutionFriendlyName}`;
       if (solutionInfo.usedDefaultSolution && solutionInfo.notificationMessage) {
@@ -637,6 +648,8 @@ export class FormActions {
 
       return successMessage;
     } catch (error) {
+      // Allow retry on genuine errors
+      (window as any).__levelUpLastOpenEditorAt = 0;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       DynamicsUtils.showToast(`Failed to open form editor: ${errorMessage}`, 'error');
       throw new Error(`Failed to open form editor: ${errorMessage}`);
