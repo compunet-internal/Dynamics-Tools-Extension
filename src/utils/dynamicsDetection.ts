@@ -95,9 +95,7 @@ export const getPageTypeFromTab = async (): Promise<'entityrecord' | 'entitylist
  * - /environments/{environmentId}/...
  * - /e/{environmentId}/...
  */
-export const getPowerPlatformEnvironmentIdFromUrl = (
-  url: string | undefined
-): string | null => {
+export const getPowerPlatformEnvironmentIdFromUrl = (url: string | undefined): string | null => {
   if (!url) {
     return null;
   }

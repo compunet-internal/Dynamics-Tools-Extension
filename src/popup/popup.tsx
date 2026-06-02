@@ -271,7 +271,8 @@ const PopupApp: React.FC = () => {
         }
 
         if (!isSupportedDynamicsHost(tab?.url) && environmentIdFromBuildUrl) {
-          const matchingDynamicsTab = await findDynamicsTabByEnvironmentId(environmentIdFromBuildUrl);
+          const matchingDynamicsTab =
+            await findDynamicsTabByEnvironmentId(environmentIdFromBuildUrl);
           if (!matchingDynamicsTab) {
             if (!cancelled) {
               setIsConnected(false);
