@@ -21,9 +21,9 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
 import {
-  checkDynamicsViaXrm,
   getEnvironmentUrlFromXrm,
   getPageTypeFromTab,
+  getPowerPlatformEnvironmentIdFromUrl,
 } from '#utils/dynamicsDetection';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { ThemeProvider } from '#contexts/ThemeContext';
@@ -57,6 +57,7 @@ const PopupApp: React.FC = () => {
   const [isRefreshingSolutions, setIsRefreshingSolutions] = useState(false);
   const [isStaleSolutions, setIsStaleSolutions] = useState(false);
   const [isFormContext, setIsFormContext] = useState(false);
+  const [currentEnvironmentId, setCurrentEnvironmentId] = useState<string | null>(null);
 
   const normalizeSolutionId = (solutionId: string | undefined) =>
     (solutionId || '').replace(/[{}]/g, '').toLowerCase();
@@ -75,31 +76,174 @@ const PopupApp: React.FC = () => {
     }
   };
 
+  const isPowerPlatformBuildHost = (url: string | undefined): boolean => {
+    if (!url) {
+      return false;
+    }
+
+    const environmentId = getPowerPlatformEnvironmentIdFromUrl(url);
+    return Boolean(environmentId);
+  };
+
+  const normalizeEnvironmentId = (value: string | undefined): string =>
+    (value || '').replace(/[{}]/g, '').toLowerCase();
+
   // Detect if running in Firefox
   const isFirefox =
     typeof chrome !== 'undefined' && chrome.runtime && navigator.userAgent.includes('Firefox');
 
   // On mount: immediately populate from last-known hint stored in chrome.storage.local
   useEffect(() => {
-    chrome.storage.local.get('levelup_popup_solution_hint', result => {
-      const hint = result?.levelup_popup_solution_hint as
-        | { solutions: SolutionOption[]; currentSolutionId: string }
-        | undefined;
-      if (hint?.solutions?.length) {
-        setSolutions(prev => {
-          if (prev.length > 0) return prev; // real data already loaded
-          const id = hint.currentSolutionId || hint.solutions[0]?.solutionid || '';
-          setCurrentSolutionId(id);
-          setSelectedSolutionId(id);
-          setIsStaleSolutions(true);
-          return hint.solutions;
-        });
-      }
-    });
+    void (async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const envIdFromUrl = getPowerPlatformEnvironmentIdFromUrl(tab?.url);
+
+      const envHintKey = envIdFromUrl ? `levelup_popup_solution_hint_${envIdFromUrl}` : null;
+      const keysToRead = envHintKey
+        ? ['levelup_popup_solution_hint', envHintKey]
+        : ['levelup_popup_solution_hint'];
+
+      chrome.storage.local.get(keysToRead, result => {
+        const envHint = envHintKey
+          ? (result?.[envHintKey] as
+              | { solutions: SolutionOption[]; currentSolutionId: string }
+              | undefined)
+          : undefined;
+
+        const globalHint = result?.levelup_popup_solution_hint as
+          | { solutions: SolutionOption[]; currentSolutionId: string }
+          | undefined;
+
+        const hint = envHint?.solutions?.length ? envHint : globalHint;
+        if (hint?.solutions?.length) {
+          setSolutions(prev => {
+            if (prev.length > 0) return prev; // real data already loaded
+            const id = hint.currentSolutionId || hint.solutions[0]?.solutionid || '';
+            setCurrentSolutionId(id);
+            setSelectedSolutionId(id);
+            setIsStaleSolutions(true);
+            return hint.solutions;
+          });
+        }
+      });
+    })();
   }, []);
 
   const triggerContextRecheck = () => {
     setContextCheckNonce(value => value + 1);
+  };
+
+  const sendActionToTab = async (tabId: number, action: DynamicsAction, data?: unknown) => {
+    return await new Promise<{ success: boolean; data?: unknown; error?: string }>(resolve => {
+      let settled = false;
+      const timeoutId = window.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve({ success: false, error: 'Timed out waiting for tab response' });
+      }, 5000);
+
+      chrome.tabs.sendMessage(
+        tabId,
+        {
+          type: 'LEVELUP_REQUEST',
+          action,
+          data,
+          requestId: Date.now().toString(),
+        },
+        response => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          window.clearTimeout(timeoutId);
+
+          if (chrome.runtime.lastError) {
+            resolve({ success: false, error: chrome.runtime.lastError.message });
+            return;
+          }
+
+          resolve(response || { success: false, error: 'No response received' });
+        }
+      );
+    });
+  };
+
+  const findDynamicsTabByEnvironmentId = async (
+    environmentId: string
+  ): Promise<chrome.tabs.Tab | null> => {
+    const targetEnvironmentId = normalizeEnvironmentId(environmentId);
+    if (!targetEnvironmentId) {
+      return null;
+    }
+
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const preferredWindowId = activeTab?.windowId;
+
+    const allTabs = await chrome.tabs.query({});
+    const candidateTabs = allTabs
+      .filter(tab => tab.id && isSupportedDynamicsHost(tab.url))
+      .sort((left, right) => {
+        const leftScore = left.windowId === preferredWindowId ? 0 : 1;
+        const rightScore = right.windowId === preferredWindowId ? 0 : 1;
+        return leftScore - rightScore;
+      });
+
+    const tabLookups = await Promise.all(
+      candidateTabs.map(async tab => {
+        try {
+          const response = await sendActionToTab(tab.id!, 'admin:get-organization-settings');
+          if (!response.success || !response.data || typeof response.data !== 'object') {
+            return { tab, reachable: false, environmentId: '' };
+          }
+
+          const orgSettings = response.data as {
+            bapEnvironmentId?: string;
+            environmentId?: string;
+          };
+
+          return {
+            tab,
+            reachable: true,
+            environmentId: normalizeEnvironmentId(
+              orgSettings.bapEnvironmentId || orgSettings.environmentId
+            ),
+          };
+        } catch {
+          return { tab, reachable: false, environmentId: '' };
+        }
+      })
+    );
+
+    const exactMatch = tabLookups.find(
+      lookup => lookup.reachable && lookup.environmentId === targetEnvironmentId
+    );
+    if (exactMatch) {
+      return exactMatch.tab;
+    }
+
+    // Fallback: if no exact environment match, use any reachable Dynamics tab.
+    const reachableFallback = tabLookups.find(lookup => lookup.reachable);
+    return reachableFallback?.tab || null;
+  };
+
+  const resolveActionTargetTab = async (): Promise<chrome.tabs.Tab | null> => {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab) {
+      return null;
+    }
+
+    if (isSupportedDynamicsHost(activeTab.url)) {
+      return activeTab;
+    }
+
+    const environmentIdFromBuildUrl = getPowerPlatformEnvironmentIdFromUrl(activeTab.url);
+    if (environmentIdFromBuildUrl) {
+      return await findDynamicsTabByEnvironmentId(environmentIdFromBuildUrl);
+    }
+
+    return null;
   };
 
   useEffect(() => {
@@ -108,9 +252,12 @@ const PopupApp: React.FC = () => {
     const checkConnection = async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const supportedHost = isSupportedDynamicsHost(tab?.url);
+        const environmentIdFromBuildUrl = getPowerPlatformEnvironmentIdFromUrl(tab?.url);
+        const supportedHost =
+          isSupportedDynamicsHost(tab?.url) || isPowerPlatformBuildHost(tab?.url);
 
         setIsSupportedHost(supportedHost);
+        setCurrentEnvironmentId(environmentIdFromBuildUrl);
 
         if (!supportedHost) {
           if (!cancelled) {
@@ -123,12 +270,31 @@ const PopupApp: React.FC = () => {
           return;
         }
 
-        // URL already confirms this is a Dynamics page — mark ready immediately.
-        // The environment URL is derived from the tab URL so no Xrm polling needed.
-        const [environmentUrl, pageType] = await Promise.all([
-          getEnvironmentUrlFromXrm(),
-          getPageTypeFromTab(),
-        ]);
+        if (!isSupportedDynamicsHost(tab?.url) && environmentIdFromBuildUrl) {
+          const matchingDynamicsTab = await findDynamicsTabByEnvironmentId(environmentIdFromBuildUrl);
+          if (!matchingDynamicsTab) {
+            if (!cancelled) {
+              setIsConnected(false);
+              setIsContextReady(false);
+              setContextMessage(
+                'This is a Power Platform build URL. Open any Dynamics tab for the same environment, then click Retry.'
+              );
+            }
+            return;
+          }
+        }
+
+        let pageType: 'entityrecord' | 'entitylist' | null = null;
+        if (isSupportedDynamicsHost(tab?.url)) {
+          // Only probe page context on actual Dynamics hosts.
+          const [environmentUrl, detectedPageType] = await Promise.all([
+            getEnvironmentUrlFromXrm(),
+            getPageTypeFromTab(),
+          ]);
+          void environmentUrl;
+          pageType = detectedPageType;
+        }
+
         if (!cancelled) {
           setIsConnected(true);
           setIsContextReady(true);
@@ -167,30 +333,14 @@ const PopupApp: React.FC = () => {
   };
 
   const sendActionToActiveTab = async (action: DynamicsAction, data?: unknown) => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) {
-      throw new Error('No active tab found');
+    const targetTab = await resolveActionTargetTab();
+    if (!targetTab?.id) {
+      throw new Error(
+        'No Dynamics tab found for the current environment. Open a Dynamics tab for this environment and try again.'
+      );
     }
 
-    return await new Promise<{ success: boolean; data?: unknown; error?: string }>(resolve => {
-      chrome.tabs.sendMessage(
-        tab.id!,
-        {
-          type: 'LEVELUP_REQUEST',
-          action,
-          data,
-          requestId: Date.now().toString(),
-        },
-        response => {
-          if (chrome.runtime.lastError) {
-            resolve({ success: false, error: chrome.runtime.lastError.message });
-            return;
-          }
-
-          resolve(response || { success: false, error: 'No response received' });
-        }
-      );
-    });
+    return await sendActionToTab(targetTab.id, action, data);
   };
 
   const applySolutionState = (state: {
@@ -206,6 +356,14 @@ const PopupApp: React.FC = () => {
     if (safeList.length > 0) {
       chrome.storage.local.set({
         levelup_popup_solution_hint: { solutions: safeList, currentSolutionId: id },
+        ...(currentEnvironmentId
+          ? {
+              [`levelup_popup_solution_hint_${currentEnvironmentId}`]: {
+                solutions: safeList,
+                currentSolutionId: id,
+              },
+            }
+          : {}),
       });
     }
   };

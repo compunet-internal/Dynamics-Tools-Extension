@@ -88,3 +88,44 @@ export const getPageTypeFromTab = async (): Promise<'entityrecord' | 'entitylist
     return null;
   }
 };
+
+/**
+ * Extract environment id from Power Platform maker/build URLs.
+ * Supports both:
+ * - /environments/{environmentId}/...
+ * - /e/{environmentId}/...
+ */
+export const getPowerPlatformEnvironmentIdFromUrl = (
+  url: string | undefined
+): string | null => {
+  if (!url) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    // Keep the scope explicit to known maker/build hosts.
+    if (!host.endsWith('powerapps.com') && !host.endsWith('powerautomate.com')) {
+      return null;
+    }
+
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length < 2) {
+      return null;
+    }
+
+    const envMarkerIndex =
+      segments[0].toLowerCase() === 'environments' || segments[0].toLowerCase() === 'e' ? 0 : -1;
+
+    if (envMarkerIndex === -1) {
+      return null;
+    }
+
+    const candidate = segments[envMarkerIndex + 1];
+    return candidate ? candidate.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+};
