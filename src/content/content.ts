@@ -69,6 +69,7 @@ class ContentScript {
       // Only inject script and activate features if we're on a Dynamics page
       this.injectScript();
       this.setupColumnPickerFilter();
+      this.setupSignInDialogDetector();
     } else {
       // eslint-disable-next-line no-console
       console.debug(
@@ -432,6 +433,54 @@ class ContentScript {
     };
 
     window.addEventListener('message', responseListener);
+  }
+
+  /**
+   * Detects the Dynamics "Sign in to continue" forced-logout dialog and refreshes
+   * the page automatically to obtain a fresh token instead of showing the dialog.
+   */
+  private setupSignInDialogDetector(): void {
+    const SIGN_IN_DIALOG_SELECTOR = '[data-id="alertdialog"]';
+    const TITLE_TEXT_SELECTOR = '[data-id="dialogTitleText"]';
+    const SIGN_IN_TITLE = 'sign in to continue';
+
+    const isSignInDialog = (root: Element): boolean => {
+      const titleEl = root.querySelector(TITLE_TEXT_SELECTOR);
+      return Boolean(
+        titleEl &&
+          (titleEl.textContent ?? '').trim().toLowerCase() === SIGN_IN_TITLE
+      );
+    };
+
+    const handleAddedNode = (node: Node): void => {
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const el = node as Element;
+      // The dialog itself may be added, or a container wrapping it
+      if (el.matches(SIGN_IN_DIALOG_SELECTOR) && isSignInDialog(el)) {
+        // eslint-disable-next-line no-console
+        console.log('Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token');
+        window.location.reload();
+        return;
+      }
+      const dialog = el.querySelector(SIGN_IN_DIALOG_SELECTOR);
+      if (dialog && isSignInDialog(dialog)) {
+        // eslint-disable-next-line no-console
+        console.log('Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token');
+        window.location.reload();
+      }
+    };
+
+    const observer = new MutationObserver(mutations => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes) {
+            handleAddedNode(node);
+          }
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   private setupColumnPickerFilter(): void {
