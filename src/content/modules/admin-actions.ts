@@ -199,7 +199,9 @@ export class AdminActions {
   static getOrganizationSettings(): Record<string, unknown> {
     try {
       const globalContext = Xrm.Utility.getGlobalContext();
-      const orgSettings = globalContext.organizationSettings;
+      const orgSettings = globalContext.organizationSettings as Xrm.OrganizationSettings & {
+        environmentId?: string;
+      };
 
       const settings = {
         organizationId: orgSettings.organizationId,
@@ -209,6 +211,8 @@ export class AdminActions {
         baseCurrencyId: orgSettings.baseCurrencyId,
         defaultCountryCode: orgSettings.defaultCountryCode,
         isAutoSaveEnabled: orgSettings.isAutoSaveEnabled,
+        bapEnvironmentId: orgSettings.bapEnvironmentId,
+        environmentId: orgSettings.environmentId,
       };
 
       return settings;
