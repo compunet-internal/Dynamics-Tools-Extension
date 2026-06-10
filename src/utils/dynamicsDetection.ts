@@ -4,7 +4,10 @@ export const checkDynamicsViaXrm = async (): Promise<boolean> => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.url) return false;
-    return /\.crm\d*\.dynamics\.com\//i.test(tab.url) || /^https:\/\/make\.powerapps\.com\//i.test(tab.url);
+    return (
+      /\.crm\d*\.dynamics\.com\//i.test(tab.url) ||
+      /^https:\/\/make\.powerapps\.com\//i.test(tab.url)
+    );
   } catch {
     return false;
   }

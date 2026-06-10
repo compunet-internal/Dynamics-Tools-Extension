@@ -6,7 +6,13 @@ import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { messageService } from '#services/MessageService';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
 import { ThemeProvider } from '#contexts/ThemeContext';
-import { checkDynamicsViaXrm, checkIsMakePage, getEnvironmentUrlFromXrm, getPageTypeFromTab, getPowerPlatformEnvironmentIdFromUrl } from '#utils/dynamicsDetection';
+import {
+  checkDynamicsViaXrm,
+  checkIsMakePage,
+  getEnvironmentUrlFromXrm,
+  getPageTypeFromTab,
+  getPowerPlatformEnvironmentIdFromUrl,
+} from '#utils/dynamicsDetection';
 import { formActions, navigationActions, debuggingActions } from '#config/actions';
 import ThemeSwitchButtons from '#components/ThemeSwitchButtons';
 import ExtendedDisplayModeSelector from '#components/ExtendedDisplayModeSelector';
@@ -143,7 +149,9 @@ const App: React.FC = () => {
       } else if (makePage) {
         // Extract environment display name from make URL if available
         const envId = getPowerPlatformEnvironmentIdFromUrl(tab.url);
-        setEnvironmentUrl(envId ? `make.powerapps.com (${envId.substring(0, 8)}…)` : 'make.powerapps.com');
+        setEnvironmentUrl(
+          envId ? `make.powerapps.com (${envId.substring(0, 8)}…)` : 'make.powerapps.com'
+        );
         setIsFormContext(false);
       } else {
         setEnvironmentUrl('');
@@ -690,4 +698,3 @@ if (container) {
 }
 
 export default App;
-
