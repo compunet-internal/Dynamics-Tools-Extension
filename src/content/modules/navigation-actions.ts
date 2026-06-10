@@ -351,7 +351,9 @@ export class NavigationActions {
     const consoleSection =
       consoleLogs.length > 0
         ? '\n\n--- Console Log ---\n' +
-          consoleLogs.map(e => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`).join('\n')
+          consoleLogs
+            .map(e => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
+            .join('\n')
         : '';
 
     const fullDescription = `${description}\n\n--- Page URL ---\n${url}${consoleSection}`;
@@ -365,8 +367,8 @@ export class NavigationActions {
     });
 
     const caseId: string =
-      (result as Record<string, unknown>)?.id as string ||
-      (result as Record<string, unknown>)?.incidentid as string ||
+      ((result as Record<string, unknown>)?.id as string) ||
+      ((result as Record<string, unknown>)?.incidentid as string) ||
       '';
 
     if (caseId) {

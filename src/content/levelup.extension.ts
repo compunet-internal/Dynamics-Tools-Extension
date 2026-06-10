@@ -176,7 +176,11 @@ export class LevelUpExtension {
         actionName: 'report-problem',
         method: 'reportProblem',
         dataTransformer: data =>
-          data as { description: string; url: string; consoleLogs: Array<{ level: string; message: string; timestamp: string }> },
+          data as {
+            description: string;
+            url: string;
+            consoleLogs: Array<{ level: string; message: string; timestamp: string }>;
+          },
       },
     ];
   }

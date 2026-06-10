@@ -133,7 +133,11 @@ const ReportProblemDialog: React.FC<ReportProblemDialogProps> = ({
           autoFocus
         />
 
-        <Accordion disableGutters elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}
+        >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant='body2' fontWeight={500}>
@@ -142,7 +146,11 @@ const ReportProblemDialog: React.FC<ReportProblemDialogProps> = ({
               {loadingLogs ? (
                 <CircularProgress size={14} />
               ) : (
-                <Chip label={consoleLogs.length} size='small' sx={{ height: 18, fontSize: '0.7rem' }} />
+                <Chip
+                  label={consoleLogs.length}
+                  size='small'
+                  sx={{ height: 18, fontSize: '0.7rem' }}
+                />
               )}
             </Box>
           </AccordionSummary>
@@ -174,7 +182,12 @@ const ReportProblemDialog: React.FC<ReportProblemDialogProps> = ({
                       color={LEVEL_COLORS[entry.level] ?? 'default'}
                       sx={{ height: 16, fontSize: '0.6rem', mr: 0.5, verticalAlign: 'middle' }}
                     />
-                    <Typography component='span' variant='caption' color='text.secondary' sx={{ mr: 0.5 }}>
+                    <Typography
+                      component='span'
+                      variant='caption'
+                      color='text.secondary'
+                      sx={{ mr: 0.5 }}
+                    >
                       {entry.timestamp.substring(11, 23)}
                     </Typography>
                     {entry.message}

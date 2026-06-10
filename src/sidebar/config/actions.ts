@@ -419,7 +419,8 @@ export const navigationActions: ActionConfig[] = [
     id: 'navigation:report-problem',
     label: 'Report a Problem',
     icon: ReportProblemIcon,
-    tooltip: 'Report an issue by capturing the current URL and console log, then creating a support case in this environment',
+    tooltip:
+      'Report an issue by capturing the current URL and console log, then creating a support case in this environment',
     category: 'common',
     shortLabel: 'Report Problem',
     shortIcon: '🚨',
