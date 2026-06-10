@@ -436,52 +436,42 @@ class ContentScript {
   }
 
   /**
-   * Detects the Dynamics "Sign in to continue" forced-logout dialog and refreshes
-   * the page automatically to obtain a fresh token instead of showing the dialog.
+   * Detects the Dynamics "session about to expire" warning dialog and reloads
+   * the page to perform a clean re-auth instead of letting Dynamics navigate to
+   * the Azure AD logout URL.
+   *
+   * Dynamics renders this dialog via React so the container node is added first
+   * and text is populated in a subsequent render pass. We therefore scan the
+   * full document on every mutation rather than only inspecting the added node,
+   * and we also observe characterData changes so a text-only update triggers a
+   * scan too.
    */
   private setupSignInDialogDetector(): void {
-    const SIGN_IN_DIALOG_SELECTOR = '[data-id="alertdialog"]';
-    const TITLE_TEXT_SELECTOR = '[data-id="dialogTitleText"]';
-    const SIGN_IN_TITLE = 'sign in to continue';
+    const SESSION_EXPIRY_PHRASES = ['session is about to expire', 'sign in again'];
+    let triggered = false;
 
-    const isSignInDialog = (root: Element): boolean => {
-      const titleEl = root.querySelector(TITLE_TEXT_SELECTOR);
-      return Boolean(titleEl && (titleEl.textContent ?? '').trim().toLowerCase() === SIGN_IN_TITLE);
-    };
-
-    const handleAddedNode = (node: Node): void => {
-      if (node.nodeType !== Node.ELEMENT_NODE) return;
-      const el = node as Element;
-      // The dialog itself may be added, or a container wrapping it
-      if (el.matches(SIGN_IN_DIALOG_SELECTOR) && isSignInDialog(el)) {
+    const scanDocument = (): void => {
+      if (triggered) return;
+      const bodyText = (document.body?.textContent ?? '').toLowerCase();
+      if (SESSION_EXPIRY_PHRASES.some(phrase => bodyText.includes(phrase))) {
+        triggered = true;
         // eslint-disable-next-line no-console
         console.log(
-          'Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token'
-        );
-        window.location.reload();
-        return;
-      }
-      const dialog = el.querySelector(SIGN_IN_DIALOG_SELECTOR);
-      if (dialog && isSignInDialog(dialog)) {
-        // eslint-disable-next-line no-console
-        console.log(
-          'Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token'
+          'Level Up: Detected Dynamics session expiry dialog — reloading for clean re-auth'
         );
         window.location.reload();
       }
     };
 
-    const observer = new MutationObserver(mutations => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'childList') {
-          for (const node of mutation.addedNodes) {
-            handleAddedNode(node);
-          }
-        }
-      }
+    const observer = new MutationObserver(() => {
+      scanDocument();
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   private setupColumnPickerFilter(): void {
