@@ -55,7 +55,9 @@ export type NavigationActionName =
     | 'open-mobile-client'
     | 'open-power-platform-admin'
     | 'open-solutions-history'
-    | 'pin-to-side-panel';
+    | 'pin-to-side-panel'
+    | 'get-console-logs'
+    | 'report-problem';
 
 export type AdminActionName =
     | 'get-user-info'

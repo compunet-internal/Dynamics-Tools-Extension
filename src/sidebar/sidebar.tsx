@@ -12,6 +12,8 @@ import {
   getEnvironmentUrlFromXrm,
   getPageTypeFromTab,
   getPowerPlatformEnvironmentIdFromUrl,
+  getTableContextFromMakeUrl,
+  MakeTableContext,
 } from '#utils/dynamicsDetection';
 import { formActions, navigationActions, debuggingActions } from '#config/actions';
 import ThemeSwitchButtons from '#components/ThemeSwitchButtons';
@@ -27,6 +29,7 @@ import InlineAlert from '#components/InlineAlert';
 import MyCommands from '#components/MyCommands';
 import RecentlyUsed from '#components/RecentlyUsed';
 import InformationButton from '#components/InformationButton';
+import ReportProblemDialog from '#components/ReportProblemDialog';
 
 interface SidebarCurrentSolutionInfo {
   solutionId: string;
@@ -51,12 +54,14 @@ const App: React.FC = () => {
   const [dialogType, setDialogType] = useState<'open-by-id' | 'new-record' | 'open-list'>(
     'open-by-id'
   );
+  const [reportProblemDialogOpen, setReportProblemDialogOpen] = useState(false);
   const [entityName, setEntityName] = useState('');
   const [recordId, setRecordId] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [isFormContext, setIsFormContext] = useState(false);
   const [isMakePage, setIsMakePage] = useState(false);
+  const [makeTableContext, setMakeTableContext] = useState<MakeTableContext | null>(null);
   const [extensionConfig, setExtensionConfig] = useState<ExtensionConfig>(
     ExtensionConfigService.getConfig()
   );
@@ -146,6 +151,7 @@ const App: React.FC = () => {
         setEnvironmentUrl(env ? new URL(env).hostname : '');
         const pageType = await getPageTypeFromTab();
         setIsFormContext(pageType === 'entityrecord');
+        setMakeTableContext(null);
       } else if (makePage) {
         // Extract environment display name from make URL if available
         const envId = getPowerPlatformEnvironmentIdFromUrl(tab.url);
@@ -153,6 +159,7 @@ const App: React.FC = () => {
           envId ? `make.powerapps.com (${envId.substring(0, 8)}…)` : 'make.powerapps.com'
         );
         setIsFormContext(false);
+        setMakeTableContext(getTableContextFromMakeUrl(tab.url));
       } else {
         setEnvironmentUrl('');
         setIsFormContext(false);
@@ -289,6 +296,30 @@ const App: React.FC = () => {
       return true;
     }
 
+    if (id === 'form:open-table-editor') {
+      const tableCtx = getTableContextFromMakeUrl(tab?.url);
+      if (tableCtx && envId) {
+        const url = tableCtx.metadataId
+          ? `https://make.powerapps.com/environments/${envId}/entities/${tableCtx.metadataId}`
+          : `https://make.powerapps.com/environments/${envId}/tables/${tableCtx.logicalName}`;
+        chrome.tabs.update({ url });
+        return true;
+      }
+      return false;
+    }
+
+    if (id === 'form:table-processes') {
+      const tableCtx = getTableContextFromMakeUrl(tab?.url);
+      if (tableCtx && envId) {
+        const base = tableCtx.logicalName
+          ? `https://make.powerapps.com/environments/${envId}/tables/${tableCtx.logicalName}`
+          : `https://make.powerapps.com/environments/${envId}/entities/${tableCtx.metadataId}`;
+        chrome.tabs.create({ url: base });
+        return true;
+      }
+      return false;
+    }
+
     return false;
   };
 
@@ -353,6 +384,11 @@ const App: React.FC = () => {
     if (id === 'navigation:open-list') {
       setDialogType('open-list');
       setInputDialogOpen(true);
+      return;
+    }
+
+    if (id === 'navigation:report-problem') {
+      setReportProblemDialogOpen(true);
       return;
     }
 
@@ -542,6 +578,7 @@ const App: React.FC = () => {
                     favoriteIds={favoriteIds}
                     isFormContext={isFormContext}
                     isMakePage={isMakePage}
+                    makeTableContext={makeTableContext}
                   />
                 )}
                 {extensionConfig.showNavigationSection !== false &&
@@ -553,6 +590,7 @@ const App: React.FC = () => {
                       onFavoriteToggle={handleFavoriteToggle}
                       favoriteIds={favoriteIds}
                       isMakePage={isMakePage}
+                      makeTableContext={makeTableContext}
                     />
                   )}
                 {extensionConfig.showDebuggingSection !== false &&
@@ -618,6 +656,29 @@ const App: React.FC = () => {
         onClose={() => setToastOpen(false)}
         message={toastMessage}
         severity={toastSeverity}
+      />
+      <ReportProblemDialog
+        open={reportProblemDialogOpen}
+        onClose={() => setReportProblemDialogOpen(false)}
+        onSuccess={caseUrl => {
+          setReportProblemDialogOpen(false);
+          setToastMessage(
+            caseUrl.startsWith('http')
+              ? 'Case created — opening record…'
+              : 'Support case created successfully'
+          );
+          setToastSeverity('success');
+          setToastOpen(true);
+          if (caseUrl.startsWith('http')) {
+            chrome.tabs.create({ url: caseUrl });
+          }
+        }}
+        onError={message => {
+          setReportProblemDialogOpen(false);
+          setToastMessage(`Failed to create case: ${message}`);
+          setToastSeverity('error');
+          setToastOpen(true);
+        }}
       />
 
       <Box

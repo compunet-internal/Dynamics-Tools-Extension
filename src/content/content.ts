@@ -502,10 +502,32 @@ class ContentScript {
 
     const isZzCell = (cell: Element): boolean => /^zz/i.test(getCellLabel(cell));
 
+    /** Returns the visible label text of a filter dropdown option, stripping leading icon glyphs. */
+    const getOptionLabel = (el: Element): string => {
+      // Prefer a dedicated label span (Fluent Dropdown / ComboBox option text)
+      const labelSpan = el.querySelector(
+        '[class*="optionText"], [class*="itemText"], [class*="OptionText"], [class*="ItemText"], span'
+      );
+      const raw = labelSpan ? (labelSpan.textContent ?? '') : (el.textContent ?? '');
+      // Strip any leading non-letter characters (icon glyphs, whitespace, etc.)
+      return raw.trim().replace(/^[^a-zA-Z]+/, '');
+    };
+
+    /** Returns whether a filter dropdown option element has a zz-prefixed label. */
+    const isZzOption = (el: Element): boolean => /^zz/i.test(getOptionLabel(el));
+
+    /** Selector covering all Fluent option elements used by Dynamics filter dropdowns. */
+    const OPTION_SELECTOR = '[role="option"], [role="menuitemcheckbox"], [role="menuitem"]';
+
     const applyVisibility = (enabled: boolean) => {
       document.querySelectorAll('.ms-List-cell').forEach(cell => {
         if (isZzCell(cell)) {
           (cell as HTMLElement).style.display = enabled ? 'none' : '';
+        }
+      });
+      document.querySelectorAll(OPTION_SELECTOR).forEach(option => {
+        if (isZzOption(option)) {
+          (option as HTMLElement).style.display = enabled ? 'none' : '';
         }
       });
     };
@@ -515,6 +537,11 @@ class ContentScript {
       root.querySelectorAll('.ms-List-cell').forEach(cell => {
         if (isZzCell(cell)) {
           (cell as HTMLElement).style.display = 'none';
+        }
+      });
+      root.querySelectorAll(OPTION_SELECTOR).forEach(option => {
+        if (isZzOption(option)) {
+          (option as HTMLElement).style.display = 'none';
         }
       });
     };
@@ -547,7 +574,18 @@ class ContentScript {
                 if (hideEnabled && isZzCell(el)) {
                   (el as HTMLElement).style.display = 'none';
                 }
-              } else if (el.querySelector?.('.ms-List-cell')) {
+              } else if (el.getAttribute?.('role') === 'option') {
+                if (hideEnabled && isZzOption(el)) {
+                  (el as HTMLElement).style.display = 'none';
+                }
+              } else if (
+                el.getAttribute?.('role') === 'menuitemcheckbox' ||
+                el.getAttribute?.('role') === 'menuitem'
+              ) {
+                if (hideEnabled && isZzOption(el)) {
+                  (el as HTMLElement).style.display = 'none';
+                }
+              } else if (el.querySelector?.('.ms-List-cell, [role="option"]')) {
                 hideZzCells(el);
               }
             }

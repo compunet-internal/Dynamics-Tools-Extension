@@ -106,6 +106,44 @@ export const getPageTypeFromTab = async (): Promise<'entityrecord' | 'entitylist
 };
 
 /**
+ * Represents the table/entity context detected from a make.powerapps.com URL.
+ */
+export interface MakeTableContext {
+  /** Entity metadata ID from /entities/{id} URL segments */
+  metadataId?: string;
+  /** Table logical name from /tables/{name} URL segments */
+  logicalName?: string;
+}
+
+/**
+ * Detects whether a make.powerapps.com URL contains a table/entity context.
+ * Returns the table context if detectable, or null if the page has no specific table.
+ *
+ * Supports patterns:
+ *   /environments/{envId}/entities/{metadataId}/...  (table editor by metadata ID)
+ *   /environments/{envId}/tables/{logicalName}/...   (table editor by logical name)
+ */
+export const getTableContextFromMakeUrl = (url: string | undefined): MakeTableContext | null => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.endsWith('powerapps.com')) return null;
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const entitiesIdx = segments.indexOf('entities');
+    if (entitiesIdx >= 0 && segments[entitiesIdx + 1]) {
+      return { metadataId: segments[entitiesIdx + 1] };
+    }
+    const tablesIdx = segments.indexOf('tables');
+    if (tablesIdx >= 0 && segments[tablesIdx + 1]) {
+      return { logicalName: segments[tablesIdx + 1] };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Extract environment id from Power Platform maker/build URLs.
  * Supports both:
  * - /environments/{environmentId}/...

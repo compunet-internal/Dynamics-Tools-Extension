@@ -4,6 +4,7 @@
 
 import { DynamicsUtils } from './utils';
 import { EntityMetadata, EntityMetadataCache } from '#types/global';
+import { WebApiClient } from './webapi-client';
 
 export class NavigationActions {
   /**
@@ -334,5 +335,47 @@ export class NavigationActions {
       },
       'Solutions history opened'
     );
+  }
+
+  /**
+   * Create a support case (incident) in the current Dynamics environment.
+   * Called after the user fills in the Report a Problem dialog in the sidebar.
+   */
+  static async reportProblem(data: {
+    description: string;
+    url: string;
+    consoleLogs: Array<{ level: string; message: string; timestamp: string }>;
+  }): Promise<string> {
+    const { description, url, consoleLogs } = data;
+
+    const consoleSection =
+      consoleLogs.length > 0
+        ? '\n\n--- Console Log ---\n' +
+          consoleLogs.map(e => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`).join('\n')
+        : '';
+
+    const fullDescription = `${description}\n\n--- Page URL ---\n${url}${consoleSection}`;
+
+    const client = WebApiClient.getInstance();
+    const result = await client.createRecord('incidents', {
+      title: description.substring(0, 200),
+      description: fullDescription,
+      casetypecode: 2, // Problem
+      caseorigincode: 3, // Web
+    });
+
+    const caseId: string =
+      (result as Record<string, unknown>)?.id as string ||
+      (result as Record<string, unknown>)?.incidentid as string ||
+      '';
+
+    if (caseId) {
+      const globalContext = Xrm.Utility.getGlobalContext();
+      const clientUrl = globalContext.getClientUrl();
+      const caseUrl = `${clientUrl}/main.aspx?etn=incident&id=${caseId}&pagetype=entityrecord`;
+      return caseUrl;
+    }
+
+    return 'Case created successfully';
   }
 }

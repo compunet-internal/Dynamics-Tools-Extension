@@ -18,6 +18,7 @@ import {
   History as HistoryIcon,
   BugReport as BugIcon,
   Code as CodeIcon,
+  ReportProblem as ReportProblemIcon,
   Block as BanIcon,
   Rule as RuleIcon,
   DarkMode as DarkModeIcon,
@@ -52,6 +53,8 @@ export interface ActionConfig {
   requiresFormContext?: boolean;
   // When false the action can be used on make.powerapps.com pages (no Xrm API needed)
   requiresXrm?: boolean;
+  // When true the action only works on make.powerapps.com pages where a table can be detected from the URL
+  requiresMakeTableContext?: boolean;
 }
 
 export const formActions: ActionConfig[] = [
@@ -193,6 +196,7 @@ export const formActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Table Edit',
     shortIcon: '🗂️',
+    requiresMakeTableContext: true,
   },
   {
     id: 'form:table-processes',
@@ -203,6 +207,7 @@ export const formActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Processes',
     shortIcon: '🔧',
+    requiresMakeTableContext: true,
   },
 ];
 
@@ -409,5 +414,14 @@ export const navigationActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Pin',
     shortIcon: '📌',
+  },
+  {
+    id: 'navigation:report-problem',
+    label: 'Report a Problem',
+    icon: ReportProblemIcon,
+    tooltip: 'Report an issue by capturing the current URL and console log, then creating a support case in this environment',
+    category: 'common',
+    shortLabel: 'Report Problem',
+    shortIcon: '🚨',
   },
 ];

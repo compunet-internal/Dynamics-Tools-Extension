@@ -58,18 +58,57 @@ interface ActionMethodConfig {
 export class LevelUpExtension {
   private readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
   private readonly SOLUTIONS_CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+  private readonly MAX_CONSOLE_ENTRIES = 50;
   private readonly runtimeVersion: number;
   private cacheKey: string = 'levelup_entity_metadata_cache'; // Default, will be updated in init
   private solutionsCacheKey: string = 'levelup_solutions_cache'; // Default, will be updated in init
   private formActions: FormActions;
   private debuggingActions: DebuggingActions;
+  private consoleLogBuffer: Array<{ level: string; message: string; timestamp: string }> = [];
 
   constructor() {
     this.runtimeVersion = (window.__levelUpRuntimeVersion || 0) + 1;
     window.__levelUpRuntimeVersion = this.runtimeVersion;
     this.formActions = new FormActions(this);
     this.debuggingActions = new DebuggingActions();
+    this.setupConsoleCapture();
     this.init();
+  }
+
+  /**
+   * Intercept console methods to capture a rolling buffer of recent log entries.
+   * Captured logs are included when the user reports a problem.
+   */
+  private setupConsoleCapture(): void {
+    const self = this;
+    const levels = ['log', 'warn', 'error', 'info'] as const;
+    for (const level of levels) {
+      const original = console[level].bind(console);
+      (console as Record<string, unknown>)[level] = (...args: unknown[]) => {
+        original(...args);
+        const message = args
+          .map(a => {
+            try {
+              return typeof a === 'object' ? JSON.stringify(a) : String(a);
+            } catch {
+              return String(a);
+            }
+          })
+          .join(' ')
+          .substring(0, 500);
+        self.consoleLogBuffer.push({ level, message, timestamp: new Date().toISOString() });
+        if (self.consoleLogBuffer.length > self.MAX_CONSOLE_ENTRIES) {
+          self.consoleLogBuffer.shift();
+        }
+      };
+    }
+  }
+
+  /**
+   * Return a snapshot of recent console log entries.
+   */
+  getConsoleLogs(): Array<{ level: string; message: string; timestamp: string }> {
+    return [...this.consoleLogBuffer];
   }
 
   /**
@@ -133,6 +172,12 @@ export class LevelUpExtension {
       { actionName: 'open-power-platform-admin', method: 'openPowerPlatformAdmin' },
       { actionName: 'open-solutions-history', method: 'openSolutionsHistory' },
       { actionName: 'pin-to-side-panel', method: 'pinToSidePanel' },
+      {
+        actionName: 'report-problem',
+        method: 'reportProblem',
+        dataTransformer: data =>
+          data as { description: string; url: string; consoleLogs: Array<{ level: string; message: string; timestamp: string }> },
+      },
     ];
   }
 
@@ -504,6 +549,9 @@ export class LevelUpExtension {
     actionName: NavigationActionName,
     data: unknown
   ): Promise<unknown> {
+    if (actionName === 'get-console-logs') {
+      return this.getConsoleLogs();
+    }
     return this.executeActionMethod(
       NavigationActions,
       this.getNavigationActionMappings(),

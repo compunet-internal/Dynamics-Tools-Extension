@@ -34,6 +34,7 @@ interface ActionButton {
   priority?: number;
   requiresFormContext?: boolean;
   requiresXrm?: boolean;
+  requiresMakeTableContext?: boolean;
 }
 
 interface ActionSectionProps {
@@ -45,6 +46,7 @@ interface ActionSectionProps {
   sectionColor?: 'form' | 'navigation' | 'debugging';
   isFormContext?: boolean;
   isMakePage?: boolean;
+  makeTableContext?: { metadataId?: string; logicalName?: string } | null;
 }
 
 const ActionSectionComponent: React.FC<ActionSectionProps> = ({
@@ -56,6 +58,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
   sectionColor = 'form',
   isFormContext = false,
   isMakePage = false,
+  makeTableContext = null,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -324,9 +327,11 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                     const available = button.requiresFormContext
                       ? isFormContext
                       : isMakePage
-                        ? button.requiresXrm !== false
-                          ? false
-                          : true
+                        ? button.requiresMakeTableContext
+                          ? !!makeTableContext
+                          : button.requiresXrm !== false
+                            ? false
+                            : true
                         : true;
                     return (
                       <StandardActionButton
@@ -360,9 +365,11 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                     const available = button.requiresFormContext
                       ? isFormContext
                       : isMakePage
-                        ? button.requiresXrm !== false
-                          ? false
-                          : true
+                        ? button.requiresMakeTableContext
+                          ? !!makeTableContext
+                          : button.requiresXrm !== false
+                            ? false
+                            : true
                         : true;
                     return (
                       <ActionButtonList

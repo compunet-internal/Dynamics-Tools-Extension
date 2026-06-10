@@ -141,41 +141,54 @@ const PopupApp: React.FC = () => {
     setContextCheckNonce(value => value + 1);
   };
 
-  const sendActionToTab = async (tabId: number, action: DynamicsAction, data?: unknown) => {
-    return await new Promise<{ success: boolean; data?: unknown; error?: string }>(resolve => {
+  const sendMessageToTab = (
+    tabId: number,
+    action: DynamicsAction,
+    data?: unknown
+  ): Promise<{ success: boolean; data?: unknown; error?: string }> =>
+    new Promise(resolve => {
       let settled = false;
       const timeoutId = window.setTimeout(() => {
-        if (settled) {
-          return;
-        }
+        if (settled) return;
         settled = true;
         resolve({ success: false, error: 'Timed out waiting for tab response' });
       }, 5000);
 
       chrome.tabs.sendMessage(
         tabId,
-        {
-          type: 'LEVELUP_REQUEST',
-          action,
-          data,
-          requestId: Date.now().toString(),
-        },
+        { type: 'LEVELUP_REQUEST', action, data, requestId: Date.now().toString() },
         response => {
-          if (settled) {
-            return;
-          }
+          if (settled) return;
           settled = true;
           window.clearTimeout(timeoutId);
-
           if (chrome.runtime.lastError) {
             resolve({ success: false, error: chrome.runtime.lastError.message });
             return;
           }
-
           resolve(response || { success: false, error: 'No response received' });
         }
       );
     });
+
+  const sendActionToTab = async (tabId: number, action: DynamicsAction, data?: unknown) => {
+    const result = await sendMessageToTab(tabId, action, data);
+    if (
+      !result.success &&
+      typeof result.error === 'string' &&
+      result.error.toLowerCase().includes('receiving end does not exist')
+    ) {
+      // Content script is not running — try to inject it and retry once
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+        // Brief wait for the content script to initialise
+        await new Promise(resolve => window.setTimeout(resolve, 500));
+      } catch {
+        // Injection failed — return original error
+        return result;
+      }
+      return await sendMessageToTab(tabId, action, data);
+    }
+    return result;
   };
 
   const findDynamicsTabByEnvironmentId = async (
@@ -298,11 +311,24 @@ const PopupApp: React.FC = () => {
           const matchingDynamicsTab =
             await findDynamicsTabByEnvironmentId(environmentIdFromBuildUrl);
           if (!matchingDynamicsTab) {
+            // Fall back to stored client URL (same limited mode as make.powerapps.com)
+            const storedClientUrl = await getStoredClientUrl(environmentIdFromBuildUrl);
+            if (storedClientUrl) {
+              if (!cancelled) {
+                setIsConnected(true);
+                setIsContextReady(true);
+                setIsMakePage(true);
+                setMakeClientUrl(storedClientUrl);
+                setIsFormContext(false);
+                setContextMessage('');
+              }
+              return;
+            }
             if (!cancelled) {
               setIsConnected(false);
               setIsContextReady(false);
               setContextMessage(
-                'This is a Power Platform build URL. Open any Dynamics tab for the same environment, then click Retry.'
+                'This is a Power Platform build URL. Open any model-driven app tab (*.crm.dynamics.com) for the same environment, then click Retry.'
               );
             }
             return;
@@ -762,12 +788,16 @@ const PopupApp: React.FC = () => {
               py: 2,
             }}
           >
-            {isSupportedHost !== false ? <CircularProgress size={28} /> : null}
+            {isSupportedHost !== false && !contextMessage ? <CircularProgress size={28} /> : null}
             <Typography
               variant='subtitle2'
               sx={{ fontWeight: 700, fontSize: '0.85rem', textAlign: 'center' }}
             >
-              {isSupportedHost === false ? 'Open on a Dynamics page' : 'Detecting Dynamics...'}
+              {isSupportedHost === false
+                ? 'Open on a Dynamics page'
+                : contextMessage
+                  ? 'Connection required'
+                  : 'Detecting Dynamics...'}
             </Typography>
             {contextMessage ? (
               <Typography
