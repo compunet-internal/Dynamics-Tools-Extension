@@ -25,6 +25,12 @@ import {
   getPageTypeFromTab,
   getPowerPlatformEnvironmentIdFromUrl,
 } from '#utils/dynamicsDetection';
+import {
+  getStoredClientUrl,
+  fetchSolutionsDirectly,
+  fetchPreferredSolutionDirectly,
+  setPreferredSolutionDirectly,
+} from '#services/DataverseDirectService';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { ThemeProvider } from '#contexts/ThemeContext';
 import { formActions, navigationActions, ActionConfig } from '#config/actions';
@@ -58,6 +64,8 @@ const PopupApp: React.FC = () => {
   const [isStaleSolutions, setIsStaleSolutions] = useState(false);
   const [isFormContext, setIsFormContext] = useState(false);
   const [currentEnvironmentId, setCurrentEnvironmentId] = useState<string | null>(null);
+  const [isMakePage, setIsMakePage] = useState(false);
+  const [makeClientUrl, setMakeClientUrl] = useState<string | null>(null);
 
   const normalizeSolutionId = (solutionId: string | undefined) =>
     (solutionId || '').replace(/[{}]/g, '').toLowerCase();
@@ -271,6 +279,22 @@ const PopupApp: React.FC = () => {
         }
 
         if (!isSupportedDynamicsHost(tab?.url) && environmentIdFromBuildUrl) {
+          const isMake = /^https:\/\/make\.powerapps\.com\//i.test(tab?.url || '');
+          if (isMake) {
+            // make.powerapps.com — mark as context-ready with limited (no-Xrm) actions available
+            const storedClientUrl = environmentIdFromBuildUrl
+              ? await getStoredClientUrl(environmentIdFromBuildUrl)
+              : null;
+            if (!cancelled) {
+              setIsConnected(true);
+              setIsContextReady(true);
+              setIsMakePage(true);
+              setMakeClientUrl(storedClientUrl);
+              setIsFormContext(false);
+              setContextMessage('');
+            }
+            return;
+          }
           const matchingDynamicsTab =
             await findDynamicsTabByEnvironmentId(environmentIdFromBuildUrl);
           if (!matchingDynamicsTab) {
@@ -283,6 +307,10 @@ const PopupApp: React.FC = () => {
             }
             return;
           }
+        }
+
+        if (!cancelled) {
+          setIsMakePage(false);
         }
 
         let pageType: 'entityrecord' | 'entitylist' | null = null;
@@ -372,6 +400,17 @@ const PopupApp: React.FC = () => {
   /** Load from cache instantly — no API call, no spinner */
   const loadCachedSolutionState = async () => {
     if (!isConnected) return;
+
+    // On make pages with a stored client URL, load directly from Dataverse
+    if (isMakePage && makeClientUrl) {
+      return false; // signal no cache — refreshSolutionState will fetch live
+    }
+
+    // On make pages without client URL, solutions already loaded from the chrome.storage.local hint on mount
+    if (isMakePage) {
+      return solutions.length > 0;
+    }
+
     const response = await sendActionToActiveTab('navigation:get-solution-state');
     if (response.success && response.data) {
       const state = response.data as { solutions: SolutionOption[]; currentSolutionId: string };
@@ -387,6 +426,32 @@ const PopupApp: React.FC = () => {
   /** Fetch fresh data from API, update state and clear stale flag */
   const refreshSolutionState = async () => {
     if (!isConnected) return;
+
+    // On make pages with a stored client URL, call Dataverse directly
+    if (isMakePage && makeClientUrl) {
+      setIsRefreshingSolutions(true);
+      try {
+        const [rawSolutions, preferred] = await Promise.all([
+          fetchSolutionsDirectly(makeClientUrl),
+          fetchPreferredSolutionDirectly(makeClientUrl),
+        ]);
+        const currentSolutionId = preferred
+          ? preferred.solutionid.replace(/[{}]/g, '').toLowerCase()
+          : '';
+        applySolutionState({ solutions: rawSolutions as SolutionOption[], currentSolutionId });
+        setIsStaleSolutions(false);
+      } catch (error) {
+        showInlineToast(
+          `Failed to load solutions: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          'warning'
+        );
+      } finally {
+        setIsRefreshingSolutions(false);
+      }
+      return;
+    }
+
+    if (isMakePage) return; // no client URL and no content script tab — nothing to do
     setIsRefreshingSolutions(true);
     try {
       const response = await sendActionToActiveTab('navigation:refresh-solutions');
@@ -450,6 +515,46 @@ const PopupApp: React.FC = () => {
     setIsSavingSolution(true);
     setSelectedSolutionId(nextSolutionId);
 
+    // On make pages, save via direct Dataverse call if we have clientUrl, else locally
+    if (isMakePage) {
+      if (makeClientUrl) {
+        try {
+          await setPreferredSolutionDirectly(makeClientUrl, nextSolutionId);
+          setCurrentSolutionId(nextSolutionId);
+          showInlineToast('Default solution updated', 'success');
+          // Update the hint cache too
+          const updatedHint = { solutions, currentSolutionId: nextSolutionId };
+          const keysToWrite: Record<string, { solutions: SolutionOption[]; currentSolutionId: string }> = {
+            levelup_popup_solution_hint: updatedHint,
+          };
+          if (currentEnvironmentId) {
+            keysToWrite[`levelup_popup_solution_hint_${currentEnvironmentId}`] = updatedHint;
+          }
+          chrome.storage.local.set(keysToWrite);
+        } catch (error) {
+          showInlineToast(
+            `Failed to update preferred solution: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            'error'
+          );
+          setSelectedSolutionId(currentSolutionId); // revert
+        }
+      } else {
+        // No client URL — save locally only
+        const updatedHint = { solutions, currentSolutionId: nextSolutionId };
+        const keysToWrite: Record<string, { solutions: SolutionOption[]; currentSolutionId: string }> = {
+          levelup_popup_solution_hint: updatedHint,
+        };
+        if (currentEnvironmentId) {
+          keysToWrite[`levelup_popup_solution_hint_${currentEnvironmentId}`] = updatedHint;
+        }
+        chrome.storage.local.set(keysToWrite);
+        setCurrentSolutionId(nextSolutionId);
+        showInlineToast('Default solution updated (cached locally)', 'success');
+      }
+      setIsSavingSolution(false);
+      return;
+    }
+
     try {
       const response = await sendActionToActiveTab('navigation:set-preferred-solution', {
         solutionId: nextSolutionId,
@@ -476,6 +581,24 @@ const PopupApp: React.FC = () => {
   const handleActionClick = async (actionId: DynamicsAction) => {
     try {
       console.log('Executing action:', actionId);
+
+      // On make.powerapps.com, handle requiresXrm:false actions directly
+      if (isMakePage) {
+        const allActions = [...formActions, ...navigationActions];
+        const actionConfig = allActions.find(a => a.id === actionId);
+        if (actionConfig?.requiresXrm === false && currentEnvironmentId) {
+          if (actionId === 'navigation:open-solutions') {
+            chrome.tabs.create({ url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutions` });
+            return;
+          }
+          if (actionId === 'navigation:open-solutions-history') {
+            chrome.tabs.create({ url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutionsHistory` });
+            return;
+          }
+        }
+        showInlineToast('This action requires a Dynamics 365 environment page (*.crm.dynamics.com)', 'warning');
+        return;
+      }
 
       // Handle actions that require input with simple prompts
       let actionData: unknown = undefined;
@@ -545,7 +668,7 @@ const PopupApp: React.FC = () => {
     if (isContextReady && isConnected && extensionConfig.showNavigationSection) {
       void refreshSolutionDropdown();
     }
-  }, [isConnected, isContextReady, extensionConfig.showNavigationSection]);
+  }, [isConnected, isContextReady, extensionConfig.showNavigationSection, makeClientUrl]);
 
   // removed skeleton and early not-connected returns — always render full UI
 
@@ -693,7 +816,7 @@ const PopupApp: React.FC = () => {
                     <span>
                       <IconButton
                         size='small'
-                        disabled={isRefreshingSolutions || isSavingSolution || !isConnected}
+                        disabled={isRefreshingSolutions || isSavingSolution || !isConnected || (isMakePage && !makeClientUrl)}
                         onClick={() => refreshSolutionState()}
                         sx={{ p: 0.25 }}
                       >
@@ -725,7 +848,7 @@ const PopupApp: React.FC = () => {
                   <FormControl
                     fullWidth
                     size='small'
-                    disabled={isLoadingSolutions || isSavingSolution || !isConnected}
+                    disabled={isLoadingSolutions || isSavingSolution || !isConnected || (isMakePage && !makeClientUrl && solutions.length === 0)}
                   >
                     <Select
                       value={selectedSolutionId}
@@ -811,7 +934,7 @@ const PopupApp: React.FC = () => {
             )}
 
             {/* Form Actions */}
-            {extensionConfig.showFormSection && (
+            {extensionConfig.showFormSection && !isMakePage && (
               <Box sx={{ mb: 1.5 }}>
                 <Typography
                   variant='subtitle2'
@@ -982,6 +1105,7 @@ const PopupApp: React.FC = () => {
                             ? '📋'
                             : '➡️');
                       const IconComp2 = (action.icon || null) as React.ComponentType<any> | null;
+                      const available = isMakePage ? action.requiresXrm !== false ? false : true : true;
 
                       return (
                         <Link
@@ -998,7 +1122,7 @@ const PopupApp: React.FC = () => {
                             fontSize: '0.7rem',
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: available ? 'pointer' : 'not-allowed',
                             padding: '6px 4px',
                             borderRadius: '6px',
                             fontWeight: 600,
@@ -1007,16 +1131,17 @@ const PopupApp: React.FC = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: 0.25,
+                            opacity: available ? 1 : 0.4,
                             transition: 'all 0.12s ease',
-                            '&:hover': {
+                            '&:hover': available ? {
                               backgroundColor: theme =>
                                 theme.palette.mode === 'dark'
                                   ? 'rgba(255,255,255,0.02)'
                                   : 'rgba(0,0,0,0.04)',
                               transform: 'translateY(-2px)',
-                            },
+                            } : {},
                           }}
-                          title={action.tooltip || action.label}
+                          title={available ? (action.tooltip || action.label) : `${action.label} — requires a Dynamics page`}
                         >
                           {IconComp2 ? (
                             <IconComp2 sx={{ fontSize: 18 }} />

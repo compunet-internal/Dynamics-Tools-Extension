@@ -215,6 +215,17 @@ export class LevelUpExtension {
       this.solutionsCacheKey = `levelup_solutions_${hostname}`;
 
       console.log(`CompuNet Dynamics Tools: Cache key set for environment: ${hostname}`);
+
+      // Store clientUrl keyed by bapEnvironmentId so make.powerapps.com can call the API directly
+      try {
+        const bapEnvId = globalContext.organizationSettings?.bapEnvironmentId;
+        if (bapEnvId) {
+          const normalized = bapEnvId.replace(/[{}]/g, '').toLowerCase();
+          chrome.storage.local.set({ [`levelup_env_client_url_${normalized}`]: clientUrl });
+        }
+      } catch {
+        // Non-critical — ignore
+      }
     } catch (error) {
       console.warn(
         'CompuNet Dynamics Tools: Failed to get environment URL, using default cache key:',
