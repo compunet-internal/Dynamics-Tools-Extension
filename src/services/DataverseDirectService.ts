@@ -40,9 +40,7 @@ export async function getStoredClientUrl(bapEnvironmentId: string): Promise<stri
  * Fetches the list of solutions available as preferred solutions from Dataverse directly.
  * Mirrors the filtering in levelup.extension.ts getSolutionsForPicker().
  */
-export async function fetchSolutionsDirectly(
-  clientUrl: string
-): Promise<DirectSolutionOption[]> {
+export async function fetchSolutionsDirectly(clientUrl: string): Promise<DirectSolutionOption[]> {
   const url =
     `${clientUrl}/api/data/v9.2/solutions` +
     `?$select=solutionid,uniquename,friendlyname,version,ismanaged,isvisible` +
@@ -130,6 +128,8 @@ export async function setPreferredSolutionDirectly(
 
   if (!response.ok && response.status !== 204) {
     const text = await response.text().catch(() => '');
-    throw new Error(`SetPreferredSolution failed: HTTP ${response.status}${text ? ` — ${text}` : ''}`);
+    throw new Error(
+      `SetPreferredSolution failed: HTTP ${response.status}${text ? ` — ${text}` : ''}`
+    );
   }
 }

@@ -524,7 +524,10 @@ const PopupApp: React.FC = () => {
           showInlineToast('Default solution updated', 'success');
           // Update the hint cache too
           const updatedHint = { solutions, currentSolutionId: nextSolutionId };
-          const keysToWrite: Record<string, { solutions: SolutionOption[]; currentSolutionId: string }> = {
+          const keysToWrite: Record<
+            string,
+            { solutions: SolutionOption[]; currentSolutionId: string }
+          > = {
             levelup_popup_solution_hint: updatedHint,
           };
           if (currentEnvironmentId) {
@@ -541,7 +544,10 @@ const PopupApp: React.FC = () => {
       } else {
         // No client URL — save locally only
         const updatedHint = { solutions, currentSolutionId: nextSolutionId };
-        const keysToWrite: Record<string, { solutions: SolutionOption[]; currentSolutionId: string }> = {
+        const keysToWrite: Record<
+          string,
+          { solutions: SolutionOption[]; currentSolutionId: string }
+        > = {
           levelup_popup_solution_hint: updatedHint,
         };
         if (currentEnvironmentId) {
@@ -588,15 +594,22 @@ const PopupApp: React.FC = () => {
         const actionConfig = allActions.find(a => a.id === actionId);
         if (actionConfig?.requiresXrm === false && currentEnvironmentId) {
           if (actionId === 'navigation:open-solutions') {
-            chrome.tabs.create({ url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutions` });
+            chrome.tabs.create({
+              url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutions`,
+            });
             return;
           }
           if (actionId === 'navigation:open-solutions-history') {
-            chrome.tabs.create({ url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutionsHistory` });
+            chrome.tabs.create({
+              url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutionsHistory`,
+            });
             return;
           }
         }
-        showInlineToast('This action requires a Dynamics 365 environment page (*.crm.dynamics.com)', 'warning');
+        showInlineToast(
+          'This action requires a Dynamics 365 environment page (*.crm.dynamics.com)',
+          'warning'
+        );
         return;
       }
 
@@ -816,7 +829,12 @@ const PopupApp: React.FC = () => {
                     <span>
                       <IconButton
                         size='small'
-                        disabled={isRefreshingSolutions || isSavingSolution || !isConnected || (isMakePage && !makeClientUrl)}
+                        disabled={
+                          isRefreshingSolutions ||
+                          isSavingSolution ||
+                          !isConnected ||
+                          (isMakePage && !makeClientUrl)
+                        }
                         onClick={() => refreshSolutionState()}
                         sx={{ p: 0.25 }}
                       >
@@ -848,7 +866,12 @@ const PopupApp: React.FC = () => {
                   <FormControl
                     fullWidth
                     size='small'
-                    disabled={isLoadingSolutions || isSavingSolution || !isConnected || (isMakePage && !makeClientUrl && solutions.length === 0)}
+                    disabled={
+                      isLoadingSolutions ||
+                      isSavingSolution ||
+                      !isConnected ||
+                      (isMakePage && !makeClientUrl && solutions.length === 0)
+                    }
                   >
                     <Select
                       value={selectedSolutionId}
@@ -1105,7 +1128,11 @@ const PopupApp: React.FC = () => {
                             ? '📋'
                             : '➡️');
                       const IconComp2 = (action.icon || null) as React.ComponentType<any> | null;
-                      const available = isMakePage ? action.requiresXrm !== false ? false : true : true;
+                      const available = isMakePage
+                        ? action.requiresXrm !== false
+                          ? false
+                          : true
+                        : true;
 
                       return (
                         <Link
@@ -1133,15 +1160,21 @@ const PopupApp: React.FC = () => {
                             gap: 0.25,
                             opacity: available ? 1 : 0.4,
                             transition: 'all 0.12s ease',
-                            '&:hover': available ? {
-                              backgroundColor: theme =>
-                                theme.palette.mode === 'dark'
-                                  ? 'rgba(255,255,255,0.02)'
-                                  : 'rgba(0,0,0,0.04)',
-                              transform: 'translateY(-2px)',
-                            } : {},
+                            '&:hover': available
+                              ? {
+                                  backgroundColor: theme =>
+                                    theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.02)'
+                                      : 'rgba(0,0,0,0.04)',
+                                  transform: 'translateY(-2px)',
+                                }
+                              : {},
                           }}
-                          title={available ? (action.tooltip || action.label) : `${action.label} — requires a Dynamics page`}
+                          title={
+                            available
+                              ? action.tooltip || action.label
+                              : `${action.label} — requires a Dynamics page`
+                          }
                         >
                           {IconComp2 ? (
                             <IconComp2 sx={{ fontSize: 18 }} />
