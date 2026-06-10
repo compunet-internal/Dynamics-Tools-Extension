@@ -33,6 +33,7 @@ interface ActionButton {
   category?: 'common' | 'advanced';
   priority?: number;
   requiresFormContext?: boolean;
+  requiresXrm?: boolean;
 }
 
 interface ActionSectionProps {
@@ -43,6 +44,7 @@ interface ActionSectionProps {
   favoriteIds: DynamicsAction[];
   sectionColor?: 'form' | 'navigation' | 'debugging';
   isFormContext?: boolean;
+  isMakePage?: boolean;
 }
 
 const ActionSectionComponent: React.FC<ActionSectionProps> = ({
@@ -53,6 +55,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
   favoriteIds,
   sectionColor = 'form',
   isFormContext = false,
+  isMakePage = false,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -318,7 +321,13 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
               viewMode === 'grid' ? (
                 <StandardActionGrid>
                   {filteredButtons.map(button => {
-                    const available = button.requiresFormContext ? isFormContext : true;
+                    const available = button.requiresFormContext
+                      ? isFormContext
+                      : isMakePage
+                        ? button.requiresXrm !== false
+                          ? false
+                          : true
+                        : true;
                     return (
                       <StandardActionButton
                         key={button.id}
@@ -348,7 +357,13 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                   }}
                 >
                   {filteredButtons.map(button => {
-                    const available = button.requiresFormContext ? isFormContext : true;
+                    const available = button.requiresFormContext
+                      ? isFormContext
+                      : isMakePage
+                        ? button.requiresXrm !== false
+                          ? false
+                          : true
+                        : true;
                     return (
                       <ActionButtonList
                         key={button.id}

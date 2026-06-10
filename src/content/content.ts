@@ -446,10 +446,7 @@ class ContentScript {
 
     const isSignInDialog = (root: Element): boolean => {
       const titleEl = root.querySelector(TITLE_TEXT_SELECTOR);
-      return Boolean(
-        titleEl &&
-          (titleEl.textContent ?? '').trim().toLowerCase() === SIGN_IN_TITLE
-      );
+      return Boolean(titleEl && (titleEl.textContent ?? '').trim().toLowerCase() === SIGN_IN_TITLE);
     };
 
     const handleAddedNode = (node: Node): void => {
@@ -458,14 +455,18 @@ class ContentScript {
       // The dialog itself may be added, or a container wrapping it
       if (el.matches(SIGN_IN_DIALOG_SELECTOR) && isSignInDialog(el)) {
         // eslint-disable-next-line no-console
-        console.log('Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token');
+        console.log(
+          'Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token'
+        );
         window.location.reload();
         return;
       }
       const dialog = el.querySelector(SIGN_IN_DIALOG_SELECTOR);
       if (dialog && isSignInDialog(dialog)) {
         // eslint-disable-next-line no-console
-        console.log('Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token');
+        console.log(
+          'Level Up: Detected Dynamics forced sign-in dialog — refreshing for fresh token'
+        );
         window.location.reload();
       }
     };

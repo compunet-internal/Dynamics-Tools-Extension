@@ -50,6 +50,8 @@ export interface ActionConfig {
   shortIcon?: string;
   // When true the action requires an active form (entityrecord) to function
   requiresFormContext?: boolean;
+  // When false the action can be used on make.powerapps.com pages (no Xrm API needed)
+  requiresXrm?: boolean;
 }
 
 export const formActions: ActionConfig[] = [
@@ -333,6 +335,7 @@ export const navigationActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Solutions',
     shortIcon: '📦',
+    requiresXrm: false,
   },
   {
     id: 'navigation:select-default-solution',
@@ -396,6 +399,7 @@ export const navigationActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Solution Hist',
     shortIcon: '🕒',
+    requiresXrm: false,
   },
   {
     id: 'navigation:pin-to-side-panel',

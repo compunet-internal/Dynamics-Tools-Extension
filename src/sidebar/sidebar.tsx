@@ -6,7 +6,7 @@ import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { messageService } from '#services/MessageService';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
 import { ThemeProvider } from '#contexts/ThemeContext';
-import { checkDynamicsViaXrm, getEnvironmentUrlFromXrm, getPageTypeFromTab } from '#utils/dynamicsDetection';
+import { checkDynamicsViaXrm, checkIsMakePage, getEnvironmentUrlFromXrm, getPageTypeFromTab, getPowerPlatformEnvironmentIdFromUrl } from '#utils/dynamicsDetection';
 import { formActions, navigationActions, debuggingActions } from '#config/actions';
 import ThemeSwitchButtons from '#components/ThemeSwitchButtons';
 import ExtendedDisplayModeSelector from '#components/ExtendedDisplayModeSelector';
@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [isFormContext, setIsFormContext] = useState(false);
+  const [isMakePage, setIsMakePage] = useState(false);
   const [extensionConfig, setExtensionConfig] = useState<ExtensionConfig>(
     ExtensionConfigService.getConfig()
   );
@@ -130,13 +131,20 @@ const App: React.FC = () => {
 
     const updateConnectionState = async (tab: chrome.tabs.Tab) => {
       const connected = await checkDynamicsViaXrm();
+      const makePage = await checkIsMakePage();
       setIsConnected(connected);
+      setIsMakePage(makePage);
 
-      if (connected) {
+      if (connected && !makePage) {
         const env = await getEnvironmentUrlFromXrm();
         setEnvironmentUrl(env ? new URL(env).hostname : '');
         const pageType = await getPageTypeFromTab();
         setIsFormContext(pageType === 'entityrecord');
+      } else if (makePage) {
+        // Extract environment display name from make URL if available
+        const envId = getPowerPlatformEnvironmentIdFromUrl(tab.url);
+        setEnvironmentUrl(envId ? `make.powerapps.com (${envId.substring(0, 8)}…)` : 'make.powerapps.com');
+        setIsFormContext(false);
       } else {
         setEnvironmentUrl('');
         setIsFormContext(false);
@@ -249,6 +257,33 @@ const App: React.FC = () => {
     localStorage.setItem('levelup-favorites', JSON.stringify(newFavorites));
   };
 
+  /**
+   * Handle actions that can run directly on make.powerapps.com pages.
+   * Returns true if the action was handled, false if it requires Xrm.
+   */
+  const handleMakePageAction = async (id: DynamicsAction): Promise<boolean> => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const envId = getPowerPlatformEnvironmentIdFromUrl(tab?.url);
+
+    if (id === 'navigation:open-solutions') {
+      const url = envId
+        ? `https://make.powerapps.com/environments/${envId}/solutions`
+        : 'https://make.powerapps.com';
+      chrome.tabs.create({ url });
+      return true;
+    }
+
+    if (id === 'navigation:open-solutions-history') {
+      const url = envId
+        ? `https://make.powerapps.com/environments/${envId}/solutionsHistory`
+        : 'https://make.powerapps.com';
+      chrome.tabs.create({ url });
+      return true;
+    }
+
+    return false;
+  };
+
   const favoriteButtons = useMemo(() => {
     const all = [...memoizedFormActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
     return all.filter(a => favoriteIds.includes(a.id));
@@ -280,15 +315,14 @@ const App: React.FC = () => {
       return;
     }
 
-    // Check if this is a form action and do basic validation
-    if (id.startsWith('form:')) {
-      if (!isConnected) {
-        showInlineAlert(
-          'Form actions can only be used on Dynamics 365/Power Apps pages.',
-          'warning'
-        );
-        return;
-      }
+    // Handle make page actions directly without content script
+    if (isMakePage) {
+      const handled = await handleMakePageAction(id);
+      if (handled) return;
+      setToastMessage('This action requires a Dynamics 365 environment page (*.crm.dynamics.com)');
+      setToastSeverity('warning');
+      setToastOpen(true);
+      return;
     }
 
     // Dispatch custom event for recently used tracking
@@ -460,7 +494,7 @@ const App: React.FC = () => {
         >
           {/* header left / actions could go here */}
         </Box>
-        {isConnected && extensionConfig.showImpersonation && <Impersonation />}
+        {isConnected && !isMakePage && extensionConfig.showImpersonation && <Impersonation />}
       </Box>
 
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
@@ -499,6 +533,7 @@ const App: React.FC = () => {
                     onFavoriteToggle={handleFavoriteToggle}
                     favoriteIds={favoriteIds}
                     isFormContext={isFormContext}
+                    isMakePage={isMakePage}
                   />
                 )}
                 {extensionConfig.showNavigationSection !== false &&
@@ -509,6 +544,7 @@ const App: React.FC = () => {
                       onActionClick={handleActionClick}
                       onFavoriteToggle={handleFavoriteToggle}
                       favoriteIds={favoriteIds}
+                      isMakePage={isMakePage}
                     />
                   )}
                 {extensionConfig.showDebuggingSection !== false &&
@@ -519,6 +555,7 @@ const App: React.FC = () => {
                       onActionClick={handleActionClick}
                       onFavoriteToggle={handleFavoriteToggle}
                       favoriteIds={favoriteIds}
+                      isMakePage={isMakePage}
                     />
                   )}
               </>
@@ -542,7 +579,7 @@ const App: React.FC = () => {
               Navigate to a Dynamics 365 / Power Platform site to use this extension.
             </Box>
             <Box component='p' sx={{ fontSize: '0.875rem', margin: 0 }}>
-              This extension only works on *.crm.dynamics.com pages.
+              Supported: *.crm.dynamics.com and make.powerapps.com pages.
             </Box>
           </Box>
         )}

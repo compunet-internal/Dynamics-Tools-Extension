@@ -1,10 +1,23 @@
 // Dynamics detection: URL/hostname-based only.
-// The extension only supports *.crm.dynamics.com environments.
+// The extension supports *.crm.dynamics.com environments and make.powerapps.com.
 export const checkDynamicsViaXrm = async (): Promise<boolean> => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.url) return false;
-    return /\.crm\d*\.dynamics\.com\//i.test(tab.url);
+    return /\.crm\d*\.dynamics\.com\//i.test(tab.url) || /^https:\/\/make\.powerapps\.com\//i.test(tab.url);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Returns true if the active tab is a Power Apps maker page (make.powerapps.com).
+ */
+export const checkIsMakePage = async (): Promise<boolean> => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url) return false;
+    return /^https:\/\/make\.powerapps\.com\//i.test(tab.url);
   } catch {
     return false;
   }
