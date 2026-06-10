@@ -76,10 +76,15 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
   const filteredButtons = useMemo(() => {
     let filtered = buttons;
 
+    // Hide buttons that require a specific table context when on a make page without one
+    if (isMakePage && !makeTableContext) {
+      filtered = filtered.filter(button => !button.requiresMakeTableContext);
+    }
+
     // Apply search filter
     if (searchTerm.trim()) {
       const lowercaseSearch = searchTerm.toLowerCase().trim();
-      filtered = buttons.filter(
+      filtered = filtered.filter(
         button =>
           button.label.toLowerCase().includes(lowercaseSearch) ||
           (button.tooltip && button.tooltip.toLowerCase().includes(lowercaseSearch))
@@ -87,7 +92,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
     }
 
     return filtered;
-  }, [buttons, searchTerm]);
+  }, [buttons, searchTerm, isMakePage, makeTableContext]);
 
   const totalFilteredButtons = filteredButtons.length;
 
