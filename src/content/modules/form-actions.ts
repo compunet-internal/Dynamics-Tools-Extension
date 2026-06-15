@@ -685,6 +685,12 @@ export class FormActions {
       }
 
       const makerUrl = `https://make.powerapps.com/environments/${environmentId}/entities/${entityMetadataId}`;
+
+      // Store the current Dynamics record URL so the sidebar can navigate back
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        await chrome.storage.local.set({ 'levelup-last-dynamics-url': window.location.href });
+      }
+
       Xrm.Navigation.openUrl(makerUrl);
 
       return `Table editor opened for ${entityName}`;

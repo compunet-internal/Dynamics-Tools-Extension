@@ -76,32 +76,109 @@ export class LevelUpExtension {
   }
 
   /**
-   * Intercept console methods to capture a rolling buffer of recent log entries.
+   * Intercept console.error to capture a rolling buffer of error entries.
    * Captured logs are included when the user reports a problem.
    */
   private setupConsoleCapture(): void {
     const self = this;
-    const levels = ['log', 'warn', 'error', 'info'] as const;
-    for (const level of levels) {
-      const original = console[level].bind(console);
-      (console as Record<string, unknown>)[level] = (...args: unknown[]) => {
-        original(...args);
-        const message = args
-          .map(a => {
-            try {
-              return typeof a === 'object' ? JSON.stringify(a) : String(a);
-            } catch {
-              return String(a);
-            }
-          })
-          .join(' ')
-          .substring(0, 500);
-        self.consoleLogBuffer.push({ level, message, timestamp: new Date().toISOString() });
-        if (self.consoleLogBuffer.length > self.MAX_CONSOLE_ENTRIES) {
-          self.consoleLogBuffer.shift();
+    const original = console.error.bind(console);
+    console.error = (...args: unknown[]) => {
+      original(...args);
+      const message = args
+        .map(a => {
+          try {
+            return typeof a === 'object' ? JSON.stringify(a) : String(a);
+          } catch {
+            return String(a);
+          }
+        })
+        .join(' ')
+        .substring(0, 500);
+      self.consoleLogBuffer.push({ level: 'error', message, timestamp: new Date().toISOString() });
+      if (self.consoleLogBuffer.length > self.MAX_CONSOLE_ENTRIES) {
+        self.consoleLogBuffer.shift();
+      }
+    };
+    this.setupHttpCapture();
+  }
+
+  /**
+   * Intercept fetch and XHR to capture failed Dataverse API calls (/api/data/).
+   */
+  private setupHttpCapture(): void {
+    const self = this;
+    const isDataverseUrl = (url: string) => url.includes('/api/data/');
+
+    const recordHttpError = (status: number, method: string, url: string, body: string) => {
+      const baseUrl = url.split('?')[0];
+      let detail = body.substring(0, 400);
+      // Try to pull out just the Dataverse error message
+      try {
+        const parsed = JSON.parse(body);
+        const msg =
+          parsed?.error?.message ||
+          parsed?.Message ||
+          parsed?.ExceptionMessage;
+        if (msg) detail = msg.substring(0, 400);
+      } catch {
+        // keep raw body
+      }
+      const message = `[${method}] HTTP ${status} ${baseUrl} — ${detail}`;
+      self.consoleLogBuffer.push({ level: 'http-error', message, timestamp: new Date().toISOString() });
+      if (self.consoleLogBuffer.length > self.MAX_CONSOLE_ENTRIES) self.consoleLogBuffer.shift();
+    };
+
+    // --- fetch intercept ---
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : (input as Request).url;
+      const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+      const response = await originalFetch(input, init);
+      if (isDataverseUrl(url) && !response.ok) {
+        try {
+          const text = await response.clone().text().catch(() => '');
+          recordHttpError(response.status, method, url, text);
+        } catch {
+          // ignore
         }
+      }
+      return response;
+    };
+
+    // --- XHR intercept ---
+    const OriginalXHR = window.XMLHttpRequest;
+    function PatchedXHR(this: XMLHttpRequest) {
+      const xhr = new OriginalXHR();
+      let _method = 'GET';
+      let _url = '';
+      const originalOpen = xhr.open.bind(xhr);
+      (xhr as unknown as Record<string, unknown>).open = function (
+        method: string,
+        url: string,
+        ...rest: unknown[]
+      ) {
+        _method = method.toUpperCase();
+        _url = url;
+        return (originalOpen as (...a: unknown[]) => void)(method, url, ...rest);
       };
+      xhr.addEventListener('load', () => {
+        if (isDataverseUrl(_url) && xhr.status >= 400) {
+          try {
+            recordHttpError(xhr.status, _method, _url, xhr.responseText || '');
+          } catch {
+            // ignore
+          }
+        }
+      });
+      return xhr;
     }
+    PatchedXHR.prototype = OriginalXHR.prototype;
+    window.XMLHttpRequest = PatchedXHR as unknown as typeof XMLHttpRequest;
   }
 
   /**
@@ -177,6 +254,7 @@ export class LevelUpExtension {
         method: 'reportProblem',
         dataTransformer: data =>
           data as {
+            title: string;
             description: string;
             url: string;
             consoleLogs: Array<{ level: string; message: string; timestamp: string }>;

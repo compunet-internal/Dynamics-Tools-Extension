@@ -342,29 +342,77 @@ export class NavigationActions {
    * Called after the user fills in the Report a Problem dialog in the sidebar.
    */
   static async reportProblem(data: {
+    title?: string;
     description: string;
     url: string;
     consoleLogs: Array<{ level: string; message: string; timestamp: string }>;
   }): Promise<string> {
-    const { description, url, consoleLogs } = data;
+    const { title, description, url, consoleLogs } = data;
 
-    const consoleSection =
-      consoleLogs.length > 0
-        ? '\n\n--- Console Log ---\n' +
-          consoleLogs
-            .map(e => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
-            .join('\n')
-        : '';
+    let consoleSection = '';
+    if (consoleLogs.length > 0) {
+      let logText = consoleLogs
+        .map(e => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
+        .join('\n');
+      if (logText.length > 5000) {
+        logText = '...(truncated to last 5000 chars)\n' + logText.slice(-5000);
+      }
+      consoleSection = '\n\n--- Console Log ---\n' + logText;
+    }
 
     const fullDescription = `${description}\n\n--- Page URL ---\n${url}${consoleSection}`;
 
     const client = WebApiClient.getInstance();
-    const result = await client.createRecord('incidents', {
-      title: description.substring(0, 200),
+    const globalContext = Xrm.Utility.getGlobalContext();
+    const userId = globalContext.getUserId().replace(/[{}]/g, '');
+
+    // Find or create a contact record matching the current systemuser
+    let contactId: string | undefined;
+    try {
+      const userRecord = await client.retrieveRecord('systemusers', userId, [
+        'internalemailaddress',
+        'firstname',
+        'lastname',
+      ]);
+      const email: string = userRecord?.internalemailaddress ?? '';
+      if (email) {
+        const contacts = await client.retrieveMultiple('contacts', {
+          filter: `emailaddress1 eq '${email}'`,
+          select: ['contactid'],
+          top: 1,
+        });
+        contactId = (contacts?.value?.[0] as Record<string, unknown>)?.contactid as
+          | string
+          | undefined;
+
+        if (!contactId) {
+          // Contact doesn't exist — create one from the systemuser profile
+          const newContact = await client.createRecord('contacts', {
+            firstname: userRecord?.firstname ?? '',
+            lastname: userRecord?.lastname ?? email,
+            emailaddress1: email,
+          });
+          contactId =
+            ((newContact as Record<string, unknown>)?.id as string) ||
+            ((newContact as Record<string, unknown>)?.contactid as string) ||
+            undefined;
+        }
+      }
+    } catch {
+      // Non-fatal — create case without a contact if lookup/create fails
+    }
+
+    const incidentPayload: Record<string, unknown> = {
+      title: (title || description).substring(0, 200),
       description: fullDescription,
       casetypecode: 2, // Problem
       caseorigincode: 3, // Web
-    });
+    };
+    if (contactId) {
+      incidentPayload['customerid_contact@odata.bind'] = `/contacts(${contactId})`;
+    }
+
+    const result = await client.createRecord('incidents', incidentPayload);
 
     const caseId: string =
       ((result as Record<string, unknown>)?.id as string) ||
@@ -372,7 +420,6 @@ export class NavigationActions {
       '';
 
     if (caseId) {
-      const globalContext = Xrm.Utility.getGlobalContext();
       const clientUrl = globalContext.getClientUrl();
       const caseUrl = `${clientUrl}/main.aspx?etn=incident&id=${caseId}&pagetype=entityrecord`;
       return caseUrl;

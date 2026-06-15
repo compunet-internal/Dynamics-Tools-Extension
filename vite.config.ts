@@ -55,6 +55,7 @@ function copyStaticFilesPlugin() {
         { from: 'src/sidebar/sidebar.html', to: 'build/sidebar.html' },
         { from: 'src/sidebar/sidebar.css', to: 'build/sidebar.css' },
         { from: 'src/popup.html', to: 'build/popup.html' },
+        { from: 'src/report-problem.html', to: 'build/report-problem.html' },
       ];
 
       filesToCopy.forEach(({ from, to }) => {
@@ -115,6 +116,7 @@ export default defineConfig({
         content: resolve(__dirname, 'src/content/content.ts'),
         'levelup-extension': resolve(__dirname, 'src/content/levelup.extension.ts'),
         popup: resolve(__dirname, 'src/popup/popup.tsx'),
+        'report-problem': resolve(__dirname, 'src/report-problem/report-problem.tsx'),
       },
 
       output: {

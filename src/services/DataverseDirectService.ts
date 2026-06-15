@@ -133,3 +133,67 @@ export async function setPreferredSolutionDirectly(
     );
   }
 }
+
+/**
+ * Discovers the Dataverse client URL for a Power Platform environment
+ * by querying the BAP environments API.
+ * Returns null if the environment is not found or the call fails.
+ */
+export async function discoverDataverseUrl(bapEnvironmentId: string): Promise<string | null> {
+  const normalized = bapEnvironmentId.replace(/[{}]/g, '').toLowerCase();
+  // Check if already cached
+  const cacheKey = `levelup_env_client_url_${normalized}`;
+  const cached = await new Promise<string | null>(resolve => {
+    chrome.storage.local.get([cacheKey], result => {
+      resolve((result?.[cacheKey] as string) || null);
+    });
+  });
+  if (cached) return cached;
+
+  const url = `https://api.bap.microsoft.com/providers/Microsoft.BusinessAppPlatform/environments/${normalized}?api-version=2019-05-01`;
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      credentials: 'include',
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const instanceUrl: string | undefined =
+      data?.properties?.linkedEnvironmentMetadata?.instanceApiUrl ||
+      data?.properties?.linkedEnvironmentMetadata?.instanceUrl;
+    if (!instanceUrl) return null;
+    const clientUrl = instanceUrl.replace(/\/$/, '');
+    // Cache it for future use
+    chrome.storage.local.set({ [cacheKey]: clientUrl });
+    return clientUrl;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches the MetadataId (GUID) for an entity by its logical name.
+ * Returns null if the entity is not found or the call fails.
+ */
+export async function fetchEntityMetadataId(
+  clientUrl: string,
+  logicalName: string
+): Promise<string | null> {
+  const url =
+    `${clientUrl}/api/data/v9.2/EntityDefinitions` +
+    `?$select=MetadataId&$filter=LogicalName eq '${encodeURIComponent(logicalName)}'`;
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: ODATA_HEADERS,
+      credentials: 'include',
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const id: string | undefined = data?.value?.[0]?.MetadataId;
+    return id ? id.replace(/[{}]/g, '').toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}

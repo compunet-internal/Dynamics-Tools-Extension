@@ -8,7 +8,7 @@ export interface StandardActionButtonProps {
   icon: React.ComponentType<any>;
   tooltip?: string;
   onTooltipOpen?: () => void;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   isFavorite?: boolean;
   onFavoriteToggle?: () => void;
   showFavorite?: boolean;

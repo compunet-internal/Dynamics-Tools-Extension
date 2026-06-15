@@ -17,6 +17,7 @@ import type { SelectChangeEvent } from '@mui/material/Select';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
@@ -24,16 +25,19 @@ import {
   getEnvironmentUrlFromXrm,
   getPageTypeFromTab,
   getPowerPlatformEnvironmentIdFromUrl,
+  getTableContextFromMakeUrl,
+  MakeTableContext,
 } from '#utils/dynamicsDetection';
 import {
   getStoredClientUrl,
   fetchSolutionsDirectly,
   fetchPreferredSolutionDirectly,
   setPreferredSolutionDirectly,
+  fetchEntityMetadataId,
 } from '#services/DataverseDirectService';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { ThemeProvider } from '#contexts/ThemeContext';
-import { formActions, navigationActions, ActionConfig } from '#config/actions';
+import { formActions, navigationActions, tableActions, ActionConfig } from '#config/actions';
 
 interface SolutionOption {
   solutionid: string;
@@ -63,8 +67,11 @@ const PopupApp: React.FC = () => {
   const [isRefreshingSolutions, setIsRefreshingSolutions] = useState(false);
   const [isStaleSolutions, setIsStaleSolutions] = useState(false);
   const [isFormContext, setIsFormContext] = useState(false);
+  const [isListContext, setIsListContext] = useState(false);
+  const [isDirectDynamicsPage, setIsDirectDynamicsPage] = useState(false);
   const [currentEnvironmentId, setCurrentEnvironmentId] = useState<string | null>(null);
   const [isMakePage, setIsMakePage] = useState(false);
+  const [makeTableContext, setMakeTableContext] = useState<MakeTableContext | null>(null);
   const [makeClientUrl, setMakeClientUrl] = useState<string | null>(null);
 
   const normalizeSolutionId = (solutionId: string | undefined) =>
@@ -294,6 +301,7 @@ const PopupApp: React.FC = () => {
         if (!isSupportedDynamicsHost(tab?.url) && environmentIdFromBuildUrl) {
           const isMake = /^https:\/\/make\.powerapps\.com\//i.test(tab?.url || '');
           if (isMake) {
+            const tableContext = getTableContextFromMakeUrl(tab?.url);
             // make.powerapps.com — mark as context-ready with limited (no-Xrm) actions available
             const storedClientUrl = environmentIdFromBuildUrl
               ? await getStoredClientUrl(environmentIdFromBuildUrl)
@@ -302,6 +310,7 @@ const PopupApp: React.FC = () => {
               setIsConnected(true);
               setIsContextReady(true);
               setIsMakePage(true);
+              setMakeTableContext(tableContext);
               setMakeClientUrl(storedClientUrl);
               setIsFormContext(false);
               setContextMessage('');
@@ -335,12 +344,15 @@ const PopupApp: React.FC = () => {
           }
         }
 
+        const directDynamics = isSupportedDynamicsHost(tab?.url);
         if (!cancelled) {
           setIsMakePage(false);
+          setMakeTableContext(null);
+          setIsDirectDynamicsPage(directDynamics);
         }
 
         let pageType: 'entityrecord' | 'entitylist' | null = null;
-        if (isSupportedDynamicsHost(tab?.url)) {
+        if (directDynamics) {
           // Only probe page context on actual Dynamics hosts.
           const [environmentUrl, detectedPageType] = await Promise.all([
             getEnvironmentUrlFromXrm(),
@@ -354,6 +366,7 @@ const PopupApp: React.FC = () => {
           setIsConnected(true);
           setIsContextReady(true);
           setIsFormContext(pageType === 'entityrecord');
+          setIsListContext(pageType === 'entitylist');
           setContextMessage('');
         }
       } catch (error) {
@@ -610,30 +623,227 @@ const PopupApp: React.FC = () => {
     }
   };
 
-  const handleActionClick = async (actionId: DynamicsAction) => {
+  const handleActionClick = async (actionId: DynamicsAction, shiftKey = false) => {
     try {
-      console.log('Executing action:', actionId);
+      console.log('Executing action:', actionId, { isConnected, isMakePage });
+
+      // Report a Problem: inject overlay directly into the page via scripting API
+      if (actionId === 'navigation:report-problem') {
+        console.log('Opening Report a Problem overlay via scripting');
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id) {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: () => {
+                const OVERLAY_ID = 'levelup-report-overlay';
+                if (document.getElementById(OVERLAY_ID)) return;
+
+                const isDark = window.matchMedia?.('(prefers-color-scheme:dark)').matches;
+                const bg = isDark ? '#1e1e2e' : '#ffffff';
+                const fg = isDark ? '#cdd6f4' : '#1a1a2e';
+                const border = isDark ? '#45475a' : '#d0d0e0';
+                const inputBg = isDark ? '#313244' : '#f8f9ff';
+
+                const buildOverlay = (logs: Array<{level:string;message:string;timestamp:string}>) => {
+                  const logLines = logs.length
+                    ? logs.map(e =>
+                        `<span style="opacity:.6;font-size:11px">[${e.timestamp.substring(11,23)}]</span> ` +
+                        `<b style="color:${e.level==='error'?'#f38ba8':e.level==='warn'?'#fab387':'#89dceb'}">${e.level.toUpperCase()}</b> ` +
+                        e.message.replace(/</g,'&lt;')
+                      ).join('\n')
+                    : 'No console entries captured.';
+
+                  const overlay = document.createElement('div');
+                  overlay.id = OVERLAY_ID;
+                  overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+                  overlay.innerHTML = `
+                    <div style="background:${bg};color:${fg};border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.45);width:min(660px,94vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+                      <div style="padding:18px 24px 12px;border-bottom:1px solid ${border};display:flex;align-items:center;gap:10px">
+                        <span style="font-size:20px">⚠️</span>
+                        <div>
+                          <div style="font-size:17px;font-weight:700;line-height:1.2">Report a Problem</div>
+                          <div style="font-size:12px;opacity:.6;margin-top:2px">Describe the issue and a support case will be created in this environment</div>
+                        </div>
+                        <button id="lup-rp-close" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:22px;color:${fg};opacity:.5;line-height:1;padding:0 4px">&times;</button>
+                      </div>
+                      <div style="padding:16px 24px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px">
+                        <div>
+                          <label style="font-size:12px;font-weight:600;opacity:.65;display:block;margin-bottom:4px">Case Title *</label>
+                          <input id="lup-rp-title" type="text" value="${document.title.replace(/"/g,'&quot;')}" placeholder="Brief title for the case" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:13px;font-family:inherit" />
+                        </div>
+                        <div>
+                          <label style="font-size:12px;font-weight:600;opacity:.65;display:block;margin-bottom:4px">Description *</label>
+                          <textarea id="lup-rp-desc" rows="7" placeholder="Describe the problem you encountered…" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:13px;font-family:inherit;resize:vertical"></textarea>
+                        </div>
+                        <div>
+                          <label style="font-size:12px;font-weight:600;opacity:.65;display:block;margin-bottom:4px">Page URL</label>
+                          <input id="lup-rp-url" type="text" value="${window.location.href.replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:12px;font-family:monospace" />
+                        </div>
+                        <div style="display:flex;align-items:flex-start;gap:10px">
+                          <input id="lup-rp-include-logs" type="checkbox" checked style="margin-top:2px;cursor:pointer;width:15px;height:15px;flex-shrink:0" />
+                          <div style="flex:1">
+                            <label for="lup-rp-include-logs" style="font-size:13px;font-weight:600;cursor:pointer">Include Console Log <span style="font-weight:400;opacity:.6">(${logs.length} entries)</span></label>
+                            <pre id="lup-rp-log-preview" style="margin:6px 0 0;padding:10px 12px;border:1px solid ${border};border-radius:6px;font-size:11px;font-family:monospace;overflow-y:auto;max-height:160px;white-space:pre-wrap;word-break:break-all;background:${inputBg}">${logLines || '(no console log entries)'}</pre>
+                          </div>
+                        </div>
+                        <div id="lup-rp-status" style="display:none;padding:10px 12px;border-radius:6px;font-size:13px"></div>
+                      </div>
+                      <div style="padding:12px 24px 18px;border-top:1px solid ${border};display:flex;justify-content:flex-end;gap:10px">
+                        <button id="lup-rp-cancel" style="padding:8px 20px;border:1px solid ${border};border-radius:6px;background:none;color:${fg};cursor:pointer;font-size:14px">Cancel</button>
+                        <button id="lup-rp-submit" style="padding:8px 20px;border:none;border-radius:6px;background:#f59e0b;color:#111;cursor:pointer;font-size:14px;font-weight:600">Submit Case</button>
+                      </div>
+                    </div>`;
+
+                  const close = () => overlay.remove();
+                  overlay.querySelector('#lup-rp-close')!.addEventListener('click', close);
+                  overlay.querySelector('#lup-rp-cancel')!.addEventListener('click', close);
+                  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+                  const submitBtn = overlay.querySelector('#lup-rp-submit') as HTMLButtonElement;
+                  const statusDiv = overlay.querySelector('#lup-rp-status') as HTMLElement;
+                  const includeLogsCheckbox = overlay.querySelector('#lup-rp-include-logs') as HTMLInputElement;
+                  const logPreview = overlay.querySelector('#lup-rp-log-preview') as HTMLElement;
+                  includeLogsCheckbox.addEventListener('change', () => {
+                    logPreview.style.opacity = includeLogsCheckbox.checked ? '1' : '0.35';
+                  });
+
+                  submitBtn.addEventListener('click', () => {
+                    const title = (overlay.querySelector('#lup-rp-title') as HTMLInputElement).value.trim();
+                    const desc = (overlay.querySelector('#lup-rp-desc') as HTMLTextAreaElement).value.trim();
+                    const url = (overlay.querySelector('#lup-rp-url') as HTMLInputElement).value.trim();
+                    if (!title) {
+                      (overlay.querySelector('#lup-rp-title') as HTMLElement).style.borderColor = '#f38ba8';
+                      return;
+                    }
+                    if (!desc) {
+                      (overlay.querySelector('#lup-rp-desc') as HTMLElement).style.borderColor = '#f38ba8';
+                      return;
+                    }
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Creating Case…';
+
+                    const reqId = `rp_${Date.now()}`;
+                    const respListener = (ev: MessageEvent) => {
+                      if (ev.source !== window || ev.data?.type !== 'LEVELUP_RESPONSE' || ev.data?.requestId !== reqId) return;
+                      window.removeEventListener('message', respListener);
+                      const okColor = isDark ? '#a6e3a1' : '#166534';
+                      const errColor = isDark ? '#f38ba8' : '#991b1b';
+                      const okBg = isDark ? '#1e3a2f' : '#f0fdf4';
+                      const errBg = isDark ? '#3a1e1e' : '#fef2f2';
+                      if (ev.data.success) {
+                        statusDiv.style.cssText = `display:block;padding:10px 12px;border-radius:6px;font-size:13px;background:${okBg};color:${okColor}`;
+                        statusDiv.textContent = 'Support case created successfully.';
+                        const caseUrl = ev.data.data as string;
+                        if (caseUrl?.startsWith('http')) window.open(caseUrl, '_blank');
+                        window.setTimeout(close, 1500);
+                      } else {
+                        statusDiv.style.cssText = `display:block;padding:10px 12px;border-radius:6px;font-size:13px;background:${errBg};color:${errColor}`;
+                        statusDiv.textContent = `Error: ${ev.data.error ?? 'Failed to create case'}`;
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Submit Case';
+                      }
+                    };
+                    window.addEventListener('message', respListener);
+                    const includeLogs = (overlay.querySelector('#lup-rp-include-logs') as HTMLInputElement).checked;
+                    window.postMessage({ type: 'LEVELUP_REQUEST', action: 'navigation:report-problem', data: { title, description: desc, url, consoleLogs: includeLogs ? logs : [] }, requestId: reqId }, window.location.origin);
+                  });
+
+                  document.body.appendChild(overlay);
+                  window.setTimeout(() => (overlay.querySelector('#lup-rp-desc') as HTMLElement)?.focus(), 80);
+                };
+
+                // Try to get console logs from injected script, then build overlay
+                const logReqId = `rplog_${Date.now()}`;
+                let settled = false;
+                const logListener = (ev: MessageEvent) => {
+                  if (ev.source !== window || ev.data?.requestId !== logReqId) return;
+                  if (ev.data?.type === 'LEVELUP_RESPONSE') {
+                    settled = true;
+                    window.removeEventListener('message', logListener);
+                    buildOverlay(Array.isArray(ev.data.data) ? ev.data.data : []);
+                  }
+                };
+                window.addEventListener('message', logListener);
+                window.postMessage({ type: 'LEVELUP_REQUEST', action: 'navigation:get-console-logs', requestId: logReqId }, window.location.origin);
+                window.setTimeout(() => { if (!settled) { window.removeEventListener('message', logListener); buildOverlay([]); } }, 1000);
+              },
+            });
+          } else {
+            console.warn('No active tab found for overlay injection');
+          }
+          window.close();
+        } catch (e) {
+          console.error('Failed to inject Report a Problem overlay:', e);
+        }
+        return;
+      }
 
       // On make.powerapps.com, handle requiresXrm:false actions directly
       if (isMakePage) {
         const allActions = [...formActions, ...navigationActions];
         const actionConfig = allActions.find(a => a.id === actionId);
+        if (
+          (actionId === 'form:open-table-editor' || actionId === 'form:table-processes') &&
+          currentEnvironmentId &&
+          makeTableContext
+        ) {
+          let baseUrl: string;
+          if (makeTableContext.metadataId) {
+            baseUrl = `https://make.powerapps.com/environments/${currentEnvironmentId}/entities/${makeTableContext.metadataId}`;
+          } else if (makeTableContext.logicalName) {
+            // Resolve the Dataverse URL: (1) content script same-origin API,
+            // (2) stored URL keyed to this specific env. Never use makeClientUrl
+            // (stale React state) which could be from a different environment.
+            let clientUrl: string | null = null;
+            try {
+              const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (activeTab?.id) {
+                const resp = await chrome.tabs.sendMessage(activeTab.id, {
+                  type: 'GET_DATAVERSE_URL_FROM_PAGE',
+                  envId: currentEnvironmentId,
+                });
+                clientUrl = (resp?.data as string | null | undefined) ?? null;
+              }
+            } catch { /* content script not responding */ }
+            if (!clientUrl) {
+              clientUrl = await getStoredClientUrl(currentEnvironmentId);
+            }
+            const metadataId = clientUrl
+              ? (await fetchEntityMetadataId(clientUrl, makeTableContext.logicalName)) ?? undefined
+              : undefined;
+            if (metadataId) {
+              baseUrl = `https://make.powerapps.com/environments/${currentEnvironmentId}/entities/${metadataId}`;
+            } else if (makeTableContext.solutionId) {
+              baseUrl = `https://make.powerapps.com/e/${currentEnvironmentId}/s/${makeTableContext.solutionId}/entity/${makeTableContext.logicalName}`;
+            } else {
+              baseUrl = `https://make.powerapps.com/environments/${currentEnvironmentId}/tables/${makeTableContext.logicalName}`;
+            }
+          } else {
+            baseUrl = '';
+          }
+          if (baseUrl) {
+            shiftKey ? chrome.tabs.update({ url: baseUrl }) : chrome.tabs.create({ url: baseUrl });
+          }
+          return;
+        }
+
         if (actionConfig?.requiresXrm === false && currentEnvironmentId) {
           if (actionId === 'navigation:open-solutions') {
-            chrome.tabs.create({
-              url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutions`,
-            });
+            const url = `https://make.powerapps.com/environments/${currentEnvironmentId}/solutions`;
+            shiftKey ? chrome.tabs.update({ url }) : chrome.tabs.create({ url });
             return;
           }
           if (actionId === 'navigation:open-solutions-history') {
-            chrome.tabs.create({
-              url: `https://make.powerapps.com/environments/${currentEnvironmentId}/solutionsHistory`,
-            });
+            const url = `https://make.powerapps.com/environments/${currentEnvironmentId}/solutionsHistory`;
+            shiftKey ? chrome.tabs.update({ url }) : chrome.tabs.create({ url });
             return;
           }
         }
         showInlineToast(
-          'This action requires a Dynamics 365 environment page (*.crm.dynamics.com)',
+          makeTableContext
+            ? 'This action is not available from this make.powerapps.com page context'
+            : 'This action requires a Dynamics 365 environment page (*.crm.dynamics.com)',
           'warning'
         );
         return;
@@ -987,7 +1197,7 @@ const PopupApp: React.FC = () => {
             )}
 
             {/* Form Actions */}
-            {extensionConfig.showFormSection && !isMakePage && (
+            {extensionConfig.showFormSection && !isMakePage && isDirectDynamicsPage && (
               <Box sx={{ mb: 1.5 }}>
                 <Typography
                   variant='subtitle2'
@@ -1003,6 +1213,11 @@ const PopupApp: React.FC = () => {
                 >
                   Form Actions
                 </Typography>
+                {!isFormContext ? (
+                  <Alert severity='info' sx={{ fontSize: '0.72rem', py: 0.5 }}>
+                    Open a record to use Form Actions
+                  </Alert>
+                ) : (
                 <Box
                   sx={{
                     display: 'grid',
@@ -1045,7 +1260,13 @@ const PopupApp: React.FC = () => {
                     const short = action.shortLabel || getShort(lowered);
                     const iconEmoji = action.shortIcon || getIcon(lowered);
                     const IconComp = (action.icon || null) as React.ComponentType<any> | null;
-                    const available = action.requiresFormContext ? isFormContext : true;
+                    const available = isMakePage
+                      ? action.requiresMakeTableContext
+                        ? !!makeTableContext
+                        : false
+                      : action.requiresFormContext
+                        ? isFormContext
+                        : true;
 
                     return (
                       <Link
@@ -1056,7 +1277,7 @@ const PopupApp: React.FC = () => {
                             ? (e: React.MouseEvent) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleActionClick(action.id);
+                                handleActionClick(action.id, e.shiftKey);
                               }
                             : undefined
                         }
@@ -1090,7 +1311,9 @@ const PopupApp: React.FC = () => {
                         title={
                           available
                             ? action.tooltip || action.label
-                            : `${action.label} — requires an open form`
+                            : isMakePage
+                              ? `${action.label} — requires table context on make.powerapps.com`
+                              : `${action.label} — requires an open form`
                         }
                       >
                         {IconComp ? (
@@ -1103,8 +1326,107 @@ const PopupApp: React.FC = () => {
                     );
                   })}
                 </Box>
+                )}
               </Box>
             )}
+
+            {/* Table Actions */}
+            {extensionConfig.showFormSection &&
+              (isFormContext || isListContext || (isMakePage && !!makeTableContext)) && (
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography
+                    variant='subtitle2'
+                    sx={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      mb: 0.5,
+                      color: 'text.primary',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.3px',
+                      opacity: 0.8,
+                    }}
+                  >
+                    Table Actions
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 0.5,
+                      p: 0.5,
+                      backgroundColor: theme =>
+                        theme.palette.mode === 'dark'
+                          ? theme.palette.background.paper
+                          : 'rgba(255,255,255,0.85)',
+                      borderRadius: '6px',
+                      border: theme => `1px solid ${theme.palette.divider}`,
+                      alignItems: 'stretch',
+                    }}
+                  >
+                    {tableActions.map((action: ActionConfig) => {
+                      const IconComp3 = (action.icon || null) as React.ComponentType<any> | null;
+                      const short = action.shortLabel || action.label.split(' ')[0].slice(0, 8);
+                      const iconEmoji = action.shortIcon || '🔧';
+                      const available = isMakePage ? !!makeTableContext : true;
+
+                      return (
+                        <Link
+                          key={action.id}
+                          component='button'
+                          onClick={
+                            available
+                              ? (e: React.MouseEvent) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleActionClick(action.id, e.shiftKey);
+                                }
+                              : undefined
+                          }
+                          sx={{
+                            color: 'text.primary',
+                            textDecoration: 'none',
+                            fontSize: '0.7rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: available ? 'pointer' : 'not-allowed',
+                            padding: '6px 4px',
+                            borderRadius: '6px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 0.25,
+                            opacity: available ? 1 : 0.4,
+                            transition: 'all 0.12s ease',
+                            '&:hover': available
+                              ? {
+                                  backgroundColor: theme =>
+                                    theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.02)'
+                                      : 'rgba(0,0,0,0.04)',
+                                  transform: 'translateY(-2px)',
+                                }
+                              : {},
+                          }}
+                          title={
+                            available
+                              ? action.tooltip || action.label
+                              : `${action.label} — requires table context`
+                          }
+                        >
+                          {IconComp3 ? (
+                            <IconComp3 sx={{ fontSize: 18 }} />
+                          ) : (
+                            <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                          )}
+                          <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                        </Link>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              )}
 
             {/* Navigation Actions */}
             {extensionConfig.showNavigationSection && (
@@ -1139,7 +1461,7 @@ const PopupApp: React.FC = () => {
                   }}
                 >
                   {navigationActions
-                    .filter(action => action.id !== 'navigation:select-default-solution')
+                    .filter(action => action.id !== 'navigation:select-default-solution' && action.id !== 'navigation:report-problem')
                     .map((action: ActionConfig) => {
                       const label = action.label || '';
                       const lowered = label.toLowerCase();
@@ -1171,7 +1493,7 @@ const PopupApp: React.FC = () => {
                           onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleActionClick(action.id);
+                            handleActionClick(action.id, e.shiftKey);
                           }}
                           sx={{
                             color: 'text.primary',
@@ -1216,6 +1538,29 @@ const PopupApp: React.FC = () => {
                       );
                     })}
                 </Box>
+              </Box>
+            )}
+
+            {/* Report a Problem - above hide toggle */}
+            {(isConnected || isMakePage) && (
+              <Box
+                sx={{
+                  pt: 1,
+                  mt: 0.5,
+                  borderTop: theme => `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                <Button
+                  size='small'
+                  variant='outlined'
+                  color='warning'
+                  fullWidth
+                  startIcon={<ReportProblemIcon fontSize='small' />}
+                  onClick={() => handleActionClick('navigation:report-problem' as DynamicsAction)}
+                  sx={{ fontSize: '0.7rem', py: 0.25 }}
+                >
+                  Report a Problem
+                </Button>
               </Box>
             )}
 

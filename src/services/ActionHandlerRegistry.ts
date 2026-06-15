@@ -145,6 +145,11 @@ export class ActionHandlerRegistry {
     ];
 
     this.registerHandlers(navigationConfigs);
+
+    // get-console-logs is handled directly by the injected script — route it through
+    messageService.registerHandler('navigation:get-console-logs', async () => {
+      return await this.executeContentScript('navigation:get-console-logs');
+    });
   }
 
   /**
@@ -249,6 +254,21 @@ export class ActionHandlerRegistry {
 
       return result;
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      // Normalise the "no content script" error into a friendly message so it
+      // doesn't surface as an unhandled rejection in the background console.
+      if (
+        msg.toLowerCase().includes('receiving end does not exist') ||
+        msg.toLowerCase().includes('could not establish connection')
+      ) {
+        console.warn(
+          `⚠️ [ActionHandlerRegistry] Content script not reachable for: ${fullAction}. ` +
+            'Reload the page to reconnect.'
+        );
+        throw new Error(
+          'Cannot reach the page. Please reload the tab and try again.'
+        );
+      }
       console.error(`❌ [ActionHandlerRegistry] Failed to execute: ${fullAction}`, error);
       throw error;
     }

@@ -14,7 +14,7 @@ interface ActionButton {
 
 interface FavoritesProps {
   favoriteButtons: ActionButton[];
-  onActionClick: (id: DynamicsAction) => void;
+  onActionClick: (id: DynamicsAction, shiftKey: boolean) => void;
   onFavoriteToggle: (id: DynamicsAction) => void;
 }
 
@@ -113,7 +113,7 @@ const FavoritesComponent: React.FC<FavoritesProps> = ({
                   label={button.label}
                   icon={button.icon}
                   tooltip={button.tooltip}
-                  onClick={() => onActionClick(button.id)}
+                  onClick={e => onActionClick(button.id, e.shiftKey)}
                   isFavorite={true}
                   onFavoriteToggle={() => onFavoriteToggle(button.id)}
                   showFavorite={true}

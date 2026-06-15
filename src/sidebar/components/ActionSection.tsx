@@ -8,6 +8,7 @@ import {
   Collapse,
   Tooltip,
   TextField,
+  Alert,
   InputAdornment,
   ToggleButtonGroup,
   ToggleButton,
@@ -40,13 +41,15 @@ interface ActionButton {
 interface ActionSectionProps {
   title: string;
   buttons: ActionButton[];
-  onActionClick: (id: DynamicsAction) => void;
+  onActionClick: (id: DynamicsAction, shiftKey: boolean) => void;
   onFavoriteToggle: (id: DynamicsAction) => void;
   favoriteIds: DynamicsAction[];
   sectionColor?: 'form' | 'navigation' | 'debugging';
   isFormContext?: boolean;
   isMakePage?: boolean;
   makeTableContext?: { metadataId?: string; logicalName?: string } | null;
+  /** When set, replaces the button grid with this message (e.g. when context is unavailable) */
+  unavailableMessage?: string;
 }
 
 const ActionSectionComponent: React.FC<ActionSectionProps> = ({
@@ -59,6 +62,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
   isFormContext = false,
   isMakePage = false,
   makeTableContext = null,
+  unavailableMessage,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -241,6 +245,12 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
         {/* Collapsible Content */}
         <Collapse in={expanded} timeout='auto' unmountOnExit>
           <Box sx={{ p: 2, pt: 1.5 }}>
+            {unavailableMessage ? (
+              <Alert severity='info' sx={{ fontSize: '0.78rem', py: 0.5 }}>
+                {unavailableMessage}
+              </Alert>
+            ) : (
+            <>
             {/* Search and View Controls */}
             <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
               <TextField
@@ -346,7 +356,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                         icon={button.icon}
                         tooltip={button.tooltip}
                         onTooltipOpen={button.onTooltipOpen}
-                        onClick={() => onActionClick(button.id)}
+                        onClick={e => onActionClick(button.id, e.shiftKey)}
                         isFavorite={favoriteIds.includes(button.id)}
                         onFavoriteToggle={() => onFavoriteToggle(button.id)}
                         showFavorite={true}
@@ -391,6 +401,8 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                 </Box>
               )
             ) : null}
+            </>
+            )}
           </Box>
         </Collapse>
       </CardContent>
@@ -402,7 +414,7 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
 const ActionButtonGrid: React.FC<{
   button: ActionButton;
   isFavorite: boolean;
-  onActionClick: (id: DynamicsAction) => void;
+  onActionClick: (id: DynamicsAction, shiftKey: boolean) => void;
   onFavoriteToggle: (id: DynamicsAction) => void;
   sectionColor: 'form' | 'navigation' | 'debugging';
 }> = ({ button, isFavorite, onActionClick, onFavoriteToggle }) => {
@@ -419,7 +431,7 @@ const ActionButtonGrid: React.FC<{
       <Box sx={{ position: 'relative' }}>
         <Tooltip title={button.tooltip || button.label} arrow placement='top'>
           <IconButton
-            onClick={() => onActionClick(button.id)}
+            onClick={e => onActionClick(button.id, e.shiftKey)}
             sx={{
               width: 77,
               height: 77,
@@ -514,7 +526,7 @@ const ActionButtonGrid: React.FC<{
 const ActionButtonList: React.FC<{
   button: ActionButton;
   isFavorite: boolean;
-  onActionClick: (id: DynamicsAction) => void;
+  onActionClick: (id: DynamicsAction, shiftKey: boolean) => void;
   onFavoriteToggle: (id: DynamicsAction) => void;
   sectionColor: 'form' | 'navigation' | 'debugging';
   available?: boolean;
@@ -542,7 +554,7 @@ const ActionButtonList: React.FC<{
           boxShadow: available ? 1 : 0,
         },
       }}
-      onClick={available ? () => onActionClick(button.id) : undefined}
+      onClick={available ? (e: React.MouseEvent) => onActionClick(button.id, e.shiftKey) : undefined}
     >
       <Box
         sx={{

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import { GitHub, Forum } from '@mui/icons-material';
+import { Box, Button, IconButton, Tooltip } from '@mui/material';
+import { GitHub, Forum, ReportProblem as ReportProblemIcon } from '@mui/icons-material';
 import { DynamicsAction, ExtensionDisplayMode } from '#types/global';
 import { messageService } from '#services/MessageService';
 import { ExtensionConfigService, ExtensionConfig } from '#services/ExtensionConfigService';
+import { getStoredClientUrl, fetchEntityMetadataId } from '#services/DataverseDirectService';
 import { ThemeProvider } from '#contexts/ThemeContext';
 import {
   checkDynamicsViaXrm,
@@ -15,7 +16,7 @@ import {
   getTableContextFromMakeUrl,
   MakeTableContext,
 } from '#utils/dynamicsDetection';
-import { formActions, navigationActions, debuggingActions } from '#config/actions';
+import { formActions, tableActions, navigationActions, debuggingActions } from '#config/actions';
 import ThemeSwitchButtons from '#components/ThemeSwitchButtons';
 import ExtendedDisplayModeSelector from '#components/ExtendedDisplayModeSelector';
 import StatusIndicator from '#components/StatusIndicator';
@@ -60,8 +61,10 @@ const App: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [isFormContext, setIsFormContext] = useState(false);
+  const [isListContext, setIsListContext] = useState(false);
   const [isMakePage, setIsMakePage] = useState(false);
   const [makeTableContext, setMakeTableContext] = useState<MakeTableContext | null>(null);
+  const [makeClientUrl, setMakeClientUrl] = useState<string | null>(null);
   const [extensionConfig, setExtensionConfig] = useState<ExtensionConfig>(
     ExtensionConfigService.getConfig()
   );
@@ -90,6 +93,7 @@ const App: React.FC = () => {
 
   // Memoize action arrays for better performance
   const memoizedFormActions = useMemo(() => formActions, []);
+  const memoizedTableActions = useMemo(() => tableActions, []);
   const memoizedDebuggingActions = useMemo(() => debuggingActions, []);
 
   const refreshCurrentSolutionTooltip = async () => {
@@ -151,18 +155,24 @@ const App: React.FC = () => {
         setEnvironmentUrl(env ? new URL(env).hostname : '');
         const pageType = await getPageTypeFromTab();
         setIsFormContext(pageType === 'entityrecord');
+        setIsListContext(pageType === 'entitylist');
         setMakeTableContext(null);
       } else if (makePage) {
-        // Extract environment display name from make URL if available
+        // Extract environment display name from URL — covers both make.powerapps.com and admin.powerplatform.microsoft.com
         const envId = getPowerPlatformEnvironmentIdFromUrl(tab.url);
-        setEnvironmentUrl(
-          envId ? `make.powerapps.com (${envId.substring(0, 8)}…)` : 'make.powerapps.com'
-        );
+        const isAdminPage = /^https:\/\/admin\.powerplatform\.microsoft\.com\//i.test(tab.url || '');
+        const hostLabel = isAdminPage ? 'admin.powerplatform.microsoft.com' : 'make.powerapps.com';
+        setEnvironmentUrl(envId ? `${hostLabel} (${envId.substring(0, 8)}…)` : hostLabel);
         setIsFormContext(false);
+        setIsListContext(false);
         setMakeTableContext(getTableContextFromMakeUrl(tab.url));
+        const storedClientUrl = envId ? await getStoredClientUrl(envId) : null;
+        setMakeClientUrl(storedClientUrl);
       } else {
         setEnvironmentUrl('');
         setIsFormContext(false);
+        setIsListContext(false);
+        setMakeClientUrl(null);
       }
     };
 
@@ -245,21 +255,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Initialize extension configuration
-  useEffect(() => {
-    const initializeConfig = async () => {
-      await ExtensionConfigService.initialize();
-      setExtensionConfig(ExtensionConfigService.getConfig());
-    };
-
-    initializeConfig();
-
-    // Subscribe to config changes
-    const unsubscribe = ExtensionConfigService.subscribe(setExtensionConfig);
-
-    return unsubscribe;
-  }, []);
-
   const handleDisplayModeChange = async (mode: ExtensionDisplayMode) => {
     await ExtensionConfigService.setDisplayMode(mode);
   };
@@ -276,15 +271,40 @@ const App: React.FC = () => {
    * Handle actions that can run directly on make.powerapps.com pages.
    * Returns true if the action was handled, false if it requires Xrm.
    */
-  const handleMakePageAction = async (id: DynamicsAction): Promise<boolean> => {
+  const handleMakePageAction = async (id: DynamicsAction, shiftKey: boolean): Promise<boolean> => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const envId = getPowerPlatformEnvironmentIdFromUrl(tab?.url);
+
+
+    /** Resolve the Dataverse org URL for MetadataId lookups.
+     * Priority: (1) content script same-origin API, (2) stored URL keyed by
+     * the CURRENT envId (set when visiting that env's crm page).
+     * Never falls back to stale React state from a different environment.
+     */
+    const resolveClientUrl = async (): Promise<string | null> => {
+      if (!envId) return null;
+      // 1. Content script same-origin API — always returns for the correct env
+      if (tab?.id) {
+        try {
+          const response = await chrome.tabs.sendMessage(tab.id, {
+            type: 'GET_DATAVERSE_URL_FROM_PAGE',
+            envId,
+          });
+          const found = response?.data as string | null | undefined;
+          if (found) return found;
+        } catch {
+          // Content script not responding — fall through
+        }
+      }
+      // 2. Stored URL keyed to this specific envId (written by crm.dynamics.com page)
+      return getStoredClientUrl(envId);
+    };
 
     if (id === 'navigation:open-solutions') {
       const url = envId
         ? `https://make.powerapps.com/environments/${envId}/solutions`
         : 'https://make.powerapps.com';
-      chrome.tabs.create({ url });
+      shiftKey ? chrome.tabs.update({ url }) : chrome.tabs.create({ url });
       return true;
     }
 
@@ -292,17 +312,35 @@ const App: React.FC = () => {
       const url = envId
         ? `https://make.powerapps.com/environments/${envId}/solutionsHistory`
         : 'https://make.powerapps.com';
-      chrome.tabs.create({ url });
+      shiftKey ? chrome.tabs.update({ url }) : chrome.tabs.create({ url });
       return true;
     }
 
     if (id === 'form:open-table-editor') {
       const tableCtx = getTableContextFromMakeUrl(tab?.url);
       if (tableCtx && envId) {
-        const url = tableCtx.metadataId
-          ? `https://make.powerapps.com/environments/${envId}/entities/${tableCtx.metadataId}`
-          : `https://make.powerapps.com/environments/${envId}/tables/${tableCtx.logicalName}`;
-        chrome.tabs.update({ url });
+        let url: string;
+        if (tableCtx.metadataId) {
+          // Already have the GUID — use it directly
+          url = `https://make.powerapps.com/environments/${envId}/entities/${tableCtx.metadataId}`;
+        } else if (tableCtx.logicalName) {
+          // Try to resolve the MetadataId via stored or page-scanned Dataverse URL
+          const clientUrl = await resolveClientUrl();
+          const metadataId = clientUrl
+            ? (await fetchEntityMetadataId(clientUrl, tableCtx.logicalName)) ?? undefined
+            : undefined;
+          if (metadataId) {
+            url = `https://make.powerapps.com/environments/${envId}/entities/${metadataId}`;
+          } else if (tableCtx.solutionId) {
+            // Best effort: solution-scoped entity view
+            url = `https://make.powerapps.com/e/${envId}/s/${tableCtx.solutionId}/entity/${tableCtx.logicalName}`;
+          } else {
+            url = `https://make.powerapps.com/environments/${envId}/tables/${tableCtx.logicalName}`;
+          }
+        } else {
+          return false;
+        }
+        shiftKey ? chrome.tabs.update({ url }) : chrome.tabs.create({ url });
         return true;
       }
       return false;
@@ -314,7 +352,7 @@ const App: React.FC = () => {
         const base = tableCtx.logicalName
           ? `https://make.powerapps.com/environments/${envId}/tables/${tableCtx.logicalName}`
           : `https://make.powerapps.com/environments/${envId}/entities/${tableCtx.metadataId}`;
-        chrome.tabs.create({ url: base });
+        shiftKey ? chrome.tabs.update({ url: base }) : chrome.tabs.create({ url: base });
         return true;
       }
       return false;
@@ -324,21 +362,25 @@ const App: React.FC = () => {
   };
 
   const favoriteButtons = useMemo(() => {
-    const all = [...memoizedFormActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
+    const all = [...memoizedFormActions, ...memoizedTableActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
     return all.filter(a => favoriteIds.includes(a.id));
-  }, [memoizedFormActions, memoizedNavigationActions, memoizedDebuggingActions, favoriteIds]);
+  }, [memoizedFormActions, memoizedTableActions, memoizedNavigationActions, memoizedDebuggingActions, favoriteIds]);
 
   // All actions for recently used component
   const allActions = useMemo(() => {
-    return [...memoizedFormActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
-  }, [memoizedFormActions, memoizedNavigationActions, memoizedDebuggingActions]);
+    return [...memoizedFormActions, ...memoizedTableActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
+  }, [memoizedFormActions, memoizedTableActions, memoizedNavigationActions, memoizedDebuggingActions]);
 
   const filteredFormActions = useMemo(
     () => memoizedFormActions.filter(a => !favoriteIds.includes(a.id)),
     [memoizedFormActions, favoriteIds]
   );
+  const filteredTableActions = useMemo(
+    () => memoizedTableActions.filter(a => !favoriteIds.includes(a.id)),
+    [memoizedTableActions, favoriteIds]
+  );
   const filteredNavigationActions = useMemo(
-    () => memoizedNavigationActions.filter(a => !favoriteIds.includes(a.id)),
+    () => memoizedNavigationActions.filter(a => !favoriteIds.includes(a.id) && a.id !== 'navigation:report-problem'),
     [memoizedNavigationActions, favoriteIds]
   );
   const filteredDebuggingActions = useMemo(
@@ -346,7 +388,15 @@ const App: React.FC = () => {
     [memoizedDebuggingActions, favoriteIds]
   );
 
-  const handleActionClick = async (id: DynamicsAction) => {
+  const handleActionClick = async (id: DynamicsAction, shiftKey = false) => {
+    // Report a Problem is available on any connected page (Dynamics or make/admin)
+    if (id === 'navigation:report-problem') {
+      if (isConnected || isMakePage) {
+        setReportProblemDialogOpen(true);
+        return;
+      }
+    }
+
     if (!isConnected) {
       setToastMessage('Please navigate to a Dynamics 365/Power Apps page to use this feature');
       setToastSeverity('warning');
@@ -356,7 +406,7 @@ const App: React.FC = () => {
 
     // Handle make page actions directly without content script
     if (isMakePage) {
-      const handled = await handleMakePageAction(id);
+      const handled = await handleMakePageAction(id, shiftKey);
       if (handled) return;
       setToastMessage('This action requires a Dynamics 365 environment page (*.crm.dynamics.com)');
       setToastSeverity('warning');
@@ -384,11 +434,6 @@ const App: React.FC = () => {
     if (id === 'navigation:open-list') {
       setDialogType('open-list');
       setInputDialogOpen(true);
-      return;
-    }
-
-    if (id === 'navigation:report-problem') {
-      setReportProblemDialogOpen(true);
       return;
     }
 
@@ -579,8 +624,27 @@ const App: React.FC = () => {
                     isFormContext={isFormContext}
                     isMakePage={isMakePage}
                     makeTableContext={makeTableContext}
+                    unavailableMessage={
+                      !isFormContext && !isMakePage
+                        ? 'Open a record to use Form Actions'
+                        : undefined
+                    }
                   />
                 )}
+                {extensionConfig.showFormSection !== false &&
+                  filteredTableActions.length > 0 &&
+                  (isFormContext || isListContext || (isMakePage && !!makeTableContext)) && (
+                    <ActionSection
+                      title='Table'
+                      buttons={filteredTableActions}
+                      onActionClick={handleActionClick}
+                      onFavoriteToggle={handleFavoriteToggle}
+                      favoriteIds={favoriteIds}
+                      isFormContext={isFormContext}
+                      isMakePage={isMakePage}
+                      makeTableContext={makeTableContext}
+                    />
+                  )}
                 {extensionConfig.showNavigationSection !== false &&
                   filteredNavigationActions.length > 0 && (
                     <ActionSection
@@ -680,6 +744,32 @@ const App: React.FC = () => {
           setToastOpen(true);
         }}
       />
+
+      {(isConnected || isMakePage) && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 1,
+            py: 0.5,
+            borderTop: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Button
+            size='small'
+            variant='outlined'
+            color='warning'
+            startIcon={<ReportProblemIcon fontSize='small' />}
+            onClick={() => setReportProblemDialogOpen(true)}
+            sx={{ fontSize: '0.75rem', py: 0.25, width: '100%' }}
+          >
+            Report a Problem
+          </Button>
+        </Box>
+      )}
 
       <Box
         className='sidebar-status-bar'

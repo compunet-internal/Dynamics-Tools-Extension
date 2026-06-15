@@ -26,7 +26,7 @@ interface ActionButton {
 
 interface RecentlyUsedProps {
   allActions: ActionButton[];
-  onActionClick: (id: DynamicsAction) => void;
+  onActionClick: (id: DynamicsAction, shiftKey: boolean) => void;
   onActionUsed: (id: DynamicsAction) => void; // Callback to track usage
 }
 
@@ -133,9 +133,9 @@ const RecentlyUsedComponent: React.FC<RecentlyUsedProps> = ({
     setExpanded(!expanded);
   };
 
-  const handleActionClick = (id: DynamicsAction) => {
+  const handleActionClick = (id: DynamicsAction, shiftKey: boolean) => {
     addToRecent(id);
-    onActionClick(id);
+    onActionClick(id, shiftKey);
     onActionUsed(id);
   };
 
@@ -273,7 +273,7 @@ const RecentlyUsedComponent: React.FC<RecentlyUsedProps> = ({
                     label={button.label}
                     icon={button.icon}
                     tooltip={button.tooltip || button.label}
-                    onClick={() => handleActionClick(button.id)}
+                    onClick={e => handleActionClick(button.id, e.shiftKey)}
                     additionalInfo={timeLabel}
                     showLabel={true}
                   />

@@ -188,12 +188,15 @@ export const formActions: ActionConfig[] = [
     shortIcon: '✏️',
     requiresFormContext: true,
   },
+];
+
+export const tableActions: ActionConfig[] = [
   {
     id: 'form:open-table-editor',
     label: 'Open Table Editor',
     icon: TableChartIcon,
     tooltip: 'Open the current table/entity in Power Apps Maker portal',
-    category: 'advanced',
+    category: 'common',
     shortLabel: 'Table Edit',
     shortIcon: '🗂️',
     requiresMakeTableContext: true,
@@ -204,7 +207,7 @@ export const formActions: ActionConfig[] = [
     icon: WorkflowIcon,
     tooltip:
       'View workflows, business rules, business process flows, custom APIs, and actions for this entity',
-    category: 'advanced',
+    category: 'common',
     shortLabel: 'Processes',
     shortIcon: '🔧',
     requiresMakeTableContext: true,
@@ -424,5 +427,6 @@ export const navigationActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Report Problem',
     shortIcon: '🚨',
+    requiresXrm: false,
   },
 ];
