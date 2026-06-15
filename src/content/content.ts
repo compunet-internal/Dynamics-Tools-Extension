@@ -61,7 +61,10 @@ class ContentScript {
   constructor() {
     // debug: print hostname so we can see where the content script runs
     // eslint-disable-next-line no-console
-    console.debug('CompuNet Dynamics Tools: content script starting on host', window.location.hostname);
+    console.debug(
+      'CompuNet Dynamics Tools: content script starting on host',
+      window.location.hostname
+    );
     this.init().catch(error => {
       // eslint-disable-next-line no-console
       console.error('CompuNet Dynamics Tools: Failed to initialize content script:', error);
