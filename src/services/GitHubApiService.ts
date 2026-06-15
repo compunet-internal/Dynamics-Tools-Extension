@@ -248,7 +248,7 @@ ${commandData.additionalContext}`
 
 ---
 
-*This issue was created automatically by the Level Up for Dynamics 365 browser extension.*`;
+*This issue was created automatically by the CompuNet Dynamics Tools browser extension.*`;
   }
 
   /**

@@ -18,7 +18,7 @@ async function packageExtension(browserName = 'chromium') {
   // Create release directory structure
   const releaseDir = path.join(__dirname, '..', 'release');
   const versionDir = path.join(releaseDir, browserName, version);
-  const packagePath = path.join(versionDir, `level-up-vnext-${browserName}-v${version}.zip`);
+  const packagePath = path.join(versionDir, `compunet-dynamics-tools-${browserName}-v${version}.zip`);
 
   // Modify manifest for Firefox if needed
   if (browserName === 'firefox') {

@@ -61,10 +61,10 @@ class ContentScript {
   constructor() {
     // debug: print hostname so we can see where the content script runs
     // eslint-disable-next-line no-console
-    console.debug('Level Up: content script starting on host', window.location.hostname);
+    console.debug('CompuNet Dynamics Tools: content script starting on host', window.location.hostname);
     this.init().catch(error => {
       // eslint-disable-next-line no-console
-      console.error('Level Up: Failed to initialize content script:', error);
+      console.error('CompuNet Dynamics Tools: Failed to initialize content script:', error);
     });
   }
 
@@ -84,7 +84,7 @@ class ContentScript {
     } else {
       // eslint-disable-next-line no-console
       console.debug(
-        'Level Up: Not a Dynamics 365 page, content script available for sidebar communication only'
+        'CompuNet Dynamics Tools: Not a Dynamics 365 page, content script available for sidebar communication only'
       );
     }
   }
@@ -117,13 +117,13 @@ class ContentScript {
 
       script.onload = () => {
         // eslint-disable-next-line no-console
-        console.log('Level Up: Extension script loaded successfully');
+        console.log('CompuNet Dynamics Tools: Extension script loaded successfully');
         script.remove();
       };
 
       script.onerror = error => {
         // eslint-disable-next-line no-console
-        console.error('Level Up: Failed to load extension script', error);
+        console.error('CompuNet Dynamics Tools: Failed to load extension script', error);
       };
 
       (document.head || document.documentElement).appendChild(script);
@@ -291,7 +291,7 @@ class ContentScript {
       if (this.shouldRetryAfterReinject(response)) {
         // eslint-disable-next-line no-console
         console.warn(
-          'Level Up: Retrying action after reinjecting page script',
+          'CompuNet Dynamics Tools: Retrying action after reinjecting page script',
           message.action,
           response.error
         );
@@ -663,7 +663,7 @@ class ContentScript {
         triggered = true;
         // eslint-disable-next-line no-console
         console.log(
-          'Level Up: Detected Dynamics session expiry dialog — reloading for clean re-auth'
+          'CompuNet Dynamics Tools: Detected Dynamics session expiry dialog — reloading for clean re-auth'
         );
         window.location.reload();
       }

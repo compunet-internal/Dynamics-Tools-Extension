@@ -855,7 +855,7 @@ export class TableDialog {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${this.escapeHtml(options.title)} - Level Up Extension</title>
+    <title>${this.escapeHtml(options.title)} - CompuNet Dynamics Tools</title>
     <style>
         ${this.CSS.replace('.levelup-dialog-backdrop', 'body')
           .replace('.levelup-dialog', '.levelup-content')
