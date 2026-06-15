@@ -645,18 +645,24 @@ const PopupApp: React.FC = () => {
                 const border = isDark ? '#45475a' : '#d0d0e0';
                 const inputBg = isDark ? '#313244' : '#f8f9ff';
 
-                const buildOverlay = (logs: Array<{level:string;message:string;timestamp:string}>) => {
+                const buildOverlay = (
+                  logs: Array<{ level: string; message: string; timestamp: string }>
+                ) => {
                   const logLines = logs.length
-                    ? logs.map(e =>
-                        `<span style="opacity:.6;font-size:11px">[${e.timestamp.substring(11,23)}]</span> ` +
-                        `<b style="color:${e.level==='error'?'#f38ba8':e.level==='warn'?'#fab387':'#89dceb'}">${e.level.toUpperCase()}</b> ` +
-                        e.message.replace(/</g,'&lt;')
-                      ).join('\n')
+                    ? logs
+                        .map(
+                          e =>
+                            `<span style="opacity:.6;font-size:11px">[${e.timestamp.substring(11, 23)}]</span> ` +
+                            `<b style="color:${e.level === 'error' ? '#f38ba8' : e.level === 'warn' ? '#fab387' : '#89dceb'}">${e.level.toUpperCase()}</b> ` +
+                            e.message.replace(/</g, '&lt;')
+                        )
+                        .join('\n')
                     : 'No console entries captured.';
 
                   const overlay = document.createElement('div');
                   overlay.id = OVERLAY_ID;
-                  overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+                  overlay.style.cssText =
+                    'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
                   overlay.innerHTML = `
                     <div style="background:${bg};color:${fg};border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.45);width:min(660px,94vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
                       <div style="padding:18px 24px 12px;border-bottom:1px solid ${border};display:flex;align-items:center;gap:10px">
@@ -670,7 +676,7 @@ const PopupApp: React.FC = () => {
                       <div style="padding:16px 24px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px">
                         <div>
                           <label style="font-size:12px;font-weight:600;opacity:.65;display:block;margin-bottom:4px">Case Title *</label>
-                          <input id="lup-rp-title" type="text" value="${document.title.replace(/"/g,'&quot;')}" placeholder="Brief title for the case" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:13px;font-family:inherit" />
+                          <input id="lup-rp-title" type="text" value="${document.title.replace(/"/g, '&quot;')}" placeholder="Brief title for the case" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:13px;font-family:inherit" />
                         </div>
                         <div>
                           <label style="font-size:12px;font-weight:600;opacity:.65;display:block;margin-bottom:4px">Description *</label>
@@ -678,7 +684,7 @@ const PopupApp: React.FC = () => {
                         </div>
                         <div>
                           <label style="font-size:12px;font-weight:600;opacity:.65;display:block;margin-bottom:4px">Page URL</label>
-                          <input id="lup-rp-url" type="text" value="${window.location.href.replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:12px;font-family:monospace" />
+                          <input id="lup-rp-url" type="text" value="${window.location.href.replace(/"/g, '&quot;')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${border};border-radius:6px;background:${inputBg};color:${fg};font-size:12px;font-family:monospace" />
                         </div>
                         <div style="display:flex;align-items:flex-start;gap:10px">
                           <input id="lup-rp-include-logs" type="checkbox" checked style="margin-top:2px;cursor:pointer;width:15px;height:15px;flex-shrink:0" />
@@ -698,26 +704,38 @@ const PopupApp: React.FC = () => {
                   const close = () => overlay.remove();
                   overlay.querySelector('#lup-rp-close')!.addEventListener('click', close);
                   overlay.querySelector('#lup-rp-cancel')!.addEventListener('click', close);
-                  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+                  overlay.addEventListener('click', e => {
+                    if (e.target === overlay) close();
+                  });
 
                   const submitBtn = overlay.querySelector('#lup-rp-submit') as HTMLButtonElement;
                   const statusDiv = overlay.querySelector('#lup-rp-status') as HTMLElement;
-                  const includeLogsCheckbox = overlay.querySelector('#lup-rp-include-logs') as HTMLInputElement;
+                  const includeLogsCheckbox = overlay.querySelector(
+                    '#lup-rp-include-logs'
+                  ) as HTMLInputElement;
                   const logPreview = overlay.querySelector('#lup-rp-log-preview') as HTMLElement;
                   includeLogsCheckbox.addEventListener('change', () => {
                     logPreview.style.opacity = includeLogsCheckbox.checked ? '1' : '0.35';
                   });
 
                   submitBtn.addEventListener('click', () => {
-                    const title = (overlay.querySelector('#lup-rp-title') as HTMLInputElement).value.trim();
-                    const desc = (overlay.querySelector('#lup-rp-desc') as HTMLTextAreaElement).value.trim();
-                    const url = (overlay.querySelector('#lup-rp-url') as HTMLInputElement).value.trim();
+                    const title = (
+                      overlay.querySelector('#lup-rp-title') as HTMLInputElement
+                    ).value.trim();
+                    const desc = (
+                      overlay.querySelector('#lup-rp-desc') as HTMLTextAreaElement
+                    ).value.trim();
+                    const url = (
+                      overlay.querySelector('#lup-rp-url') as HTMLInputElement
+                    ).value.trim();
                     if (!title) {
-                      (overlay.querySelector('#lup-rp-title') as HTMLElement).style.borderColor = '#f38ba8';
+                      (overlay.querySelector('#lup-rp-title') as HTMLElement).style.borderColor =
+                        '#f38ba8';
                       return;
                     }
                     if (!desc) {
-                      (overlay.querySelector('#lup-rp-desc') as HTMLElement).style.borderColor = '#f38ba8';
+                      (overlay.querySelector('#lup-rp-desc') as HTMLElement).style.borderColor =
+                        '#f38ba8';
                       return;
                     }
                     submitBtn.disabled = true;
@@ -725,7 +743,12 @@ const PopupApp: React.FC = () => {
 
                     const reqId = `rp_${Date.now()}`;
                     const respListener = (ev: MessageEvent) => {
-                      if (ev.source !== window || ev.data?.type !== 'LEVELUP_RESPONSE' || ev.data?.requestId !== reqId) return;
+                      if (
+                        ev.source !== window ||
+                        ev.data?.type !== 'LEVELUP_RESPONSE' ||
+                        ev.data?.requestId !== reqId
+                      )
+                        return;
                       window.removeEventListener('message', respListener);
                       const okColor = isDark ? '#a6e3a1' : '#166534';
                       const errColor = isDark ? '#f38ba8' : '#991b1b';
@@ -745,12 +768,30 @@ const PopupApp: React.FC = () => {
                       }
                     };
                     window.addEventListener('message', respListener);
-                    const includeLogs = (overlay.querySelector('#lup-rp-include-logs') as HTMLInputElement).checked;
-                    window.postMessage({ type: 'LEVELUP_REQUEST', action: 'navigation:report-problem', data: { title, description: desc, url, consoleLogs: includeLogs ? logs : [] }, requestId: reqId }, window.location.origin);
+                    const includeLogs = (
+                      overlay.querySelector('#lup-rp-include-logs') as HTMLInputElement
+                    ).checked;
+                    window.postMessage(
+                      {
+                        type: 'LEVELUP_REQUEST',
+                        action: 'navigation:report-problem',
+                        data: {
+                          title,
+                          description: desc,
+                          url,
+                          consoleLogs: includeLogs ? logs : [],
+                        },
+                        requestId: reqId,
+                      },
+                      window.location.origin
+                    );
                   });
 
                   document.body.appendChild(overlay);
-                  window.setTimeout(() => (overlay.querySelector('#lup-rp-desc') as HTMLElement)?.focus(), 80);
+                  window.setTimeout(
+                    () => (overlay.querySelector('#lup-rp-desc') as HTMLElement)?.focus(),
+                    80
+                  );
                 };
 
                 // Try to get console logs from injected script, then build overlay
@@ -765,8 +806,20 @@ const PopupApp: React.FC = () => {
                   }
                 };
                 window.addEventListener('message', logListener);
-                window.postMessage({ type: 'LEVELUP_REQUEST', action: 'navigation:get-console-logs', requestId: logReqId }, window.location.origin);
-                window.setTimeout(() => { if (!settled) { window.removeEventListener('message', logListener); buildOverlay([]); } }, 1000);
+                window.postMessage(
+                  {
+                    type: 'LEVELUP_REQUEST',
+                    action: 'navigation:get-console-logs',
+                    requestId: logReqId,
+                  },
+                  window.location.origin
+                );
+                window.setTimeout(() => {
+                  if (!settled) {
+                    window.removeEventListener('message', logListener);
+                    buildOverlay([]);
+                  }
+                }, 1000);
               },
             });
           } else {
@@ -805,12 +858,15 @@ const PopupApp: React.FC = () => {
                 });
                 clientUrl = (resp?.data as string | null | undefined) ?? null;
               }
-            } catch { /* content script not responding */ }
+            } catch {
+              /* content script not responding */
+            }
             if (!clientUrl) {
               clientUrl = await getStoredClientUrl(currentEnvironmentId);
             }
             const metadataId = clientUrl
-              ? (await fetchEntityMetadataId(clientUrl, makeTableContext.logicalName)) ?? undefined
+              ? ((await fetchEntityMetadataId(clientUrl, makeTableContext.logicalName)) ??
+                undefined)
               : undefined;
             if (metadataId) {
               baseUrl = `https://make.powerapps.com/environments/${currentEnvironmentId}/entities/${metadataId}`;
@@ -1218,114 +1274,114 @@ const PopupApp: React.FC = () => {
                     Open a record to use Form Actions
                   </Alert>
                 ) : (
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: 0.5,
-                    p: 0.5,
-                    backgroundColor: theme =>
-                      theme.palette.mode === 'dark'
-                        ? theme.palette.background.paper
-                        : 'rgba(255,255,255,0.85)',
-                    borderRadius: '6px',
-                    border: theme => `1px solid ${theme.palette.divider}`,
-                    alignItems: 'stretch',
-                  }}
-                >
-                  {formActions.map((action: ActionConfig) => {
-                    const label = action.label || '';
-                    const lowered = label.toLowerCase();
-                    const getShort = (text: string) => {
-                      if (text.indexOf('url') !== -1) return 'URL';
-                      if (text.indexOf('clone') !== -1) return 'Clone';
-                      if (text.indexOf('id') !== -1) return 'ID';
-                      if (text.indexOf('find') !== -1) return 'Find';
-                      if (text.indexOf('new') !== -1) return 'New';
-                      if (text.indexOf('record') !== -1) return 'Record';
-                      if (text.indexOf('solution') !== -1) return 'Solution';
-                      return text.split(' ')[0].slice(0, 8);
-                    };
-                    const getIcon = (text: string) => {
-                      if (text.indexOf('url') !== -1) return '🔗';
-                      if (text.indexOf('clone') !== -1) return '📋';
-                      if (text.indexOf('id') !== -1) return '🆔';
-                      if (text.indexOf('find') !== -1) return '🔍';
-                      if (text.indexOf('job') !== -1) return '⚙️';
-                      if (text.indexOf('solution') !== -1) return '📦';
-                      if (text.indexOf('record') !== -1) return '📄';
-                      return '🔧';
-                    };
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 0.5,
+                      p: 0.5,
+                      backgroundColor: theme =>
+                        theme.palette.mode === 'dark'
+                          ? theme.palette.background.paper
+                          : 'rgba(255,255,255,0.85)',
+                      borderRadius: '6px',
+                      border: theme => `1px solid ${theme.palette.divider}`,
+                      alignItems: 'stretch',
+                    }}
+                  >
+                    {formActions.map((action: ActionConfig) => {
+                      const label = action.label || '';
+                      const lowered = label.toLowerCase();
+                      const getShort = (text: string) => {
+                        if (text.indexOf('url') !== -1) return 'URL';
+                        if (text.indexOf('clone') !== -1) return 'Clone';
+                        if (text.indexOf('id') !== -1) return 'ID';
+                        if (text.indexOf('find') !== -1) return 'Find';
+                        if (text.indexOf('new') !== -1) return 'New';
+                        if (text.indexOf('record') !== -1) return 'Record';
+                        if (text.indexOf('solution') !== -1) return 'Solution';
+                        return text.split(' ')[0].slice(0, 8);
+                      };
+                      const getIcon = (text: string) => {
+                        if (text.indexOf('url') !== -1) return '🔗';
+                        if (text.indexOf('clone') !== -1) return '📋';
+                        if (text.indexOf('id') !== -1) return '🆔';
+                        if (text.indexOf('find') !== -1) return '🔍';
+                        if (text.indexOf('job') !== -1) return '⚙️';
+                        if (text.indexOf('solution') !== -1) return '📦';
+                        if (text.indexOf('record') !== -1) return '📄';
+                        return '🔧';
+                      };
 
-                    const short = action.shortLabel || getShort(lowered);
-                    const iconEmoji = action.shortIcon || getIcon(lowered);
-                    const IconComp = (action.icon || null) as React.ComponentType<any> | null;
-                    const available = isMakePage
-                      ? action.requiresMakeTableContext
-                        ? !!makeTableContext
-                        : false
-                      : action.requiresFormContext
-                        ? isFormContext
-                        : true;
+                      const short = action.shortLabel || getShort(lowered);
+                      const iconEmoji = action.shortIcon || getIcon(lowered);
+                      const IconComp = (action.icon || null) as React.ComponentType<any> | null;
+                      const available = isMakePage
+                        ? action.requiresMakeTableContext
+                          ? !!makeTableContext
+                          : false
+                        : action.requiresFormContext
+                          ? isFormContext
+                          : true;
 
-                    return (
-                      <Link
-                        key={action.id}
-                        component='button'
-                        onClick={
-                          available
-                            ? (e: React.MouseEvent) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleActionClick(action.id, e.shiftKey);
-                              }
-                            : undefined
-                        }
-                        sx={{
-                          color: 'text.primary',
-                          textDecoration: 'none',
-                          fontSize: '0.7rem',
-                          background: 'none',
-                          border: 'none',
-                          cursor: available ? 'pointer' : 'not-allowed',
-                          padding: '6px 4px',
-                          borderRadius: '6px',
-                          fontWeight: 600,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 0.25,
-                          opacity: available ? 1 : 0.4,
-                          transition: 'all 0.12s ease',
-                          '&:hover': available
-                            ? {
-                                backgroundColor: theme =>
-                                  theme.palette.mode === 'dark'
-                                    ? 'rgba(255,255,255,0.02)'
-                                    : 'rgba(0,0,0,0.04)',
-                                transform: 'translateY(-2px)',
-                              }
-                            : {},
-                        }}
-                        title={
-                          available
-                            ? action.tooltip || action.label
-                            : isMakePage
-                              ? `${action.label} — requires table context on make.powerapps.com`
-                              : `${action.label} — requires an open form`
-                        }
-                      >
-                        {IconComp ? (
-                          <IconComp sx={{ fontSize: 18 }} />
-                        ) : (
-                          <span style={{ fontSize: 18 }}>{iconEmoji}</span>
-                        )}
-                        <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
-                      </Link>
-                    );
-                  })}
-                </Box>
+                      return (
+                        <Link
+                          key={action.id}
+                          component='button'
+                          onClick={
+                            available
+                              ? (e: React.MouseEvent) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleActionClick(action.id, e.shiftKey);
+                                }
+                              : undefined
+                          }
+                          sx={{
+                            color: 'text.primary',
+                            textDecoration: 'none',
+                            fontSize: '0.7rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: available ? 'pointer' : 'not-allowed',
+                            padding: '6px 4px',
+                            borderRadius: '6px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 0.25,
+                            opacity: available ? 1 : 0.4,
+                            transition: 'all 0.12s ease',
+                            '&:hover': available
+                              ? {
+                                  backgroundColor: theme =>
+                                    theme.palette.mode === 'dark'
+                                      ? 'rgba(255,255,255,0.02)'
+                                      : 'rgba(0,0,0,0.04)',
+                                  transform: 'translateY(-2px)',
+                                }
+                              : {},
+                          }}
+                          title={
+                            available
+                              ? action.tooltip || action.label
+                              : isMakePage
+                                ? `${action.label} — requires table context on make.powerapps.com`
+                                : `${action.label} — requires an open form`
+                          }
+                        >
+                          {IconComp ? (
+                            <IconComp sx={{ fontSize: 18 }} />
+                          ) : (
+                            <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                          )}
+                          <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                        </Link>
+                      );
+                    })}
+                  </Box>
                 )}
               </Box>
             )}
@@ -1461,7 +1517,11 @@ const PopupApp: React.FC = () => {
                   }}
                 >
                   {navigationActions
-                    .filter(action => action.id !== 'navigation:select-default-solution' && action.id !== 'navigation:report-problem')
+                    .filter(
+                      action =>
+                        action.id !== 'navigation:select-default-solution' &&
+                        action.id !== 'navigation:report-problem'
+                    )
                     .map((action: ActionConfig) => {
                       const label = action.label || '';
                       const lowered = label.toLowerCase();

@@ -250,158 +250,160 @@ const ActionSectionComponent: React.FC<ActionSectionProps> = ({
                 {unavailableMessage}
               </Alert>
             ) : (
-            <>
-            {/* Search and View Controls */}
-            <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-              <TextField
-                size='small'
-                placeholder={`Search ${title.toLowerCase()}...`}
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position='start'>
-                      <SearchIcon fontSize='small' sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm ? (
-                    <InputAdornment position='end'>
-                      <IconButton size='small' onClick={clearSearch}>
-                        <ClearIcon fontSize='small' />
-                      </IconButton>
-                    </InputAdornment>
-                  ) : null,
-                  sx: { fontSize: '0.8rem' },
-                }}
-                sx={{
-                  flex: 1,
-                  minWidth: 180,
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme =>
-                      theme.palette.mode === 'dark'
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'rgba(255,255,255,0.8)',
-                    '&:hover': {
-                      backgroundColor: theme =>
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.08)'
-                          : 'rgba(255,255,255,0.9)',
-                    },
-                    '&.Mui-focused': {
-                      backgroundColor: theme =>
-                        theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'white',
-                    },
-                  },
-                  '& .MuiInputBase-input': {
-                    padding: '6px 8px',
-                    color: theme =>
-                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'inherit',
-                  },
-                  '& .MuiInputBase-input::placeholder': {
-                    color: theme =>
-                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'inherit',
-                    opacity: 1,
-                  },
-                }}
-              />
-
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={handleViewModeChange}
-                size='small'
-                sx={{
-                  '& .MuiToggleButton-root': {
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    color: 'text.secondary',
-                    '&.Mui-selected': {
-                      backgroundColor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        backgroundColor: 'primary.main',
-                      },
-                    },
-                  },
-                }}
-              >
-                <ToggleButton value='grid' aria-label='grid view'>
-                  <GridViewIcon fontSize='small' />
-                </ToggleButton>
-                <ToggleButton value='list' aria-label='list view'>
-                  <ListViewIcon fontSize='small' />
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-
-            {/* All Buttons */}
-            {filteredButtons.length > 0 ? (
-              viewMode === 'grid' ? (
-                <StandardActionGrid>
-                  {filteredButtons.map(button => {
-                    const available = button.requiresFormContext
-                      ? isFormContext
-                      : isMakePage
-                        ? button.requiresMakeTableContext
-                          ? !!makeTableContext
-                          : button.requiresXrm !== false
-                            ? false
-                            : true
-                        : true;
-                    return (
-                      <StandardActionButton
-                        key={button.id}
-                        id={button.id}
-                        label={button.label}
-                        icon={button.icon}
-                        tooltip={button.tooltip}
-                        onTooltipOpen={button.onTooltipOpen}
-                        onClick={e => onActionClick(button.id, e.shiftKey)}
-                        isFavorite={favoriteIds.includes(button.id)}
-                        onFavoriteToggle={() => onFavoriteToggle(button.id)}
-                        showFavorite={true}
-                        showLabel={true}
-                        available={available}
-                      />
-                    );
-                  })}
-                </StandardActionGrid>
-              ) : (
+              <>
+                {/* Search and View Controls */}
                 <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    width: '100%',
-                    maxWidth: '100%',
-                  }}
+                  sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}
                 >
-                  {filteredButtons.map(button => {
-                    const available = button.requiresFormContext
-                      ? isFormContext
-                      : isMakePage
-                        ? button.requiresMakeTableContext
-                          ? !!makeTableContext
-                          : button.requiresXrm !== false
-                            ? false
-                            : true
-                        : true;
-                    return (
-                      <ActionButtonList
-                        key={button.id}
-                        button={button}
-                        isFavorite={favoriteIds.includes(button.id)}
-                        onActionClick={onActionClick}
-                        onFavoriteToggle={onFavoriteToggle}
-                        sectionColor={sectionColor}
-                        available={available}
-                      />
-                    );
-                  })}
+                  <TextField
+                    size='small'
+                    placeholder={`Search ${title.toLowerCase()}...`}
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position='start'>
+                          <SearchIcon fontSize='small' sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: searchTerm ? (
+                        <InputAdornment position='end'>
+                          <IconButton size='small' onClick={clearSearch}>
+                            <ClearIcon fontSize='small' />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null,
+                      sx: { fontSize: '0.8rem' },
+                    }}
+                    sx={{
+                      flex: 1,
+                      minWidth: 180,
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: theme =>
+                          theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'rgba(255,255,255,0.8)',
+                        '&:hover': {
+                          backgroundColor: theme =>
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(255,255,255,0.9)',
+                        },
+                        '&.Mui-focused': {
+                          backgroundColor: theme =>
+                            theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'white',
+                        },
+                      },
+                      '& .MuiInputBase-input': {
+                        padding: '6px 8px',
+                        color: theme =>
+                          theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'inherit',
+                      },
+                      '& .MuiInputBase-input::placeholder': {
+                        color: theme =>
+                          theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'inherit',
+                        opacity: 1,
+                      },
+                    }}
+                  />
+
+                  <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={handleViewModeChange}
+                    size='small'
+                    sx={{
+                      '& .MuiToggleButton-root': {
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        color: 'text.secondary',
+                        '&.Mui-selected': {
+                          backgroundColor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            backgroundColor: 'primary.main',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    <ToggleButton value='grid' aria-label='grid view'>
+                      <GridViewIcon fontSize='small' />
+                    </ToggleButton>
+                    <ToggleButton value='list' aria-label='list view'>
+                      <ListViewIcon fontSize='small' />
+                    </ToggleButton>
+                  </ToggleButtonGroup>
                 </Box>
-              )
-            ) : null}
-            </>
+
+                {/* All Buttons */}
+                {filteredButtons.length > 0 ? (
+                  viewMode === 'grid' ? (
+                    <StandardActionGrid>
+                      {filteredButtons.map(button => {
+                        const available = button.requiresFormContext
+                          ? isFormContext
+                          : isMakePage
+                            ? button.requiresMakeTableContext
+                              ? !!makeTableContext
+                              : button.requiresXrm !== false
+                                ? false
+                                : true
+                            : true;
+                        return (
+                          <StandardActionButton
+                            key={button.id}
+                            id={button.id}
+                            label={button.label}
+                            icon={button.icon}
+                            tooltip={button.tooltip}
+                            onTooltipOpen={button.onTooltipOpen}
+                            onClick={e => onActionClick(button.id, e.shiftKey)}
+                            isFavorite={favoriteIds.includes(button.id)}
+                            onFavoriteToggle={() => onFavoriteToggle(button.id)}
+                            showFavorite={true}
+                            showLabel={true}
+                            available={available}
+                          />
+                        );
+                      })}
+                    </StandardActionGrid>
+                  ) : (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 1,
+                        width: '100%',
+                        maxWidth: '100%',
+                      }}
+                    >
+                      {filteredButtons.map(button => {
+                        const available = button.requiresFormContext
+                          ? isFormContext
+                          : isMakePage
+                            ? button.requiresMakeTableContext
+                              ? !!makeTableContext
+                              : button.requiresXrm !== false
+                                ? false
+                                : true
+                            : true;
+                        return (
+                          <ActionButtonList
+                            key={button.id}
+                            button={button}
+                            isFavorite={favoriteIds.includes(button.id)}
+                            onActionClick={onActionClick}
+                            onFavoriteToggle={onFavoriteToggle}
+                            sectionColor={sectionColor}
+                            available={available}
+                          />
+                        );
+                      })}
+                    </Box>
+                  )
+                ) : null}
+              </>
             )}
           </Box>
         </Collapse>
@@ -554,7 +556,9 @@ const ActionButtonList: React.FC<{
           boxShadow: available ? 1 : 0,
         },
       }}
-      onClick={available ? (e: React.MouseEvent) => onActionClick(button.id, e.shiftKey) : undefined}
+      onClick={
+        available ? (e: React.MouseEvent) => onActionClick(button.id, e.shiftKey) : undefined
+      }
     >
       <Box
         sx={{

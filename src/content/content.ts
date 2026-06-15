@@ -370,11 +370,13 @@ class ContentScript {
 
       case 'GET_DATAVERSE_URL_FROM_PAGE': {
         const getMsg = message as GetDataverseUrlMessage;
-        this.fetchDataverseUrlForEnvironment(getMsg.envId).then(url => {
-          sendResponse({ success: true, data: url });
-        }).catch(() => {
-          sendResponse({ success: true, data: null });
-        });
+        this.fetchDataverseUrlForEnvironment(getMsg.envId)
+          .then(url => {
+            sendResponse({ success: true, data: url });
+          })
+          .catch(() => {
+            sendResponse({ success: true, data: null });
+          });
         return true;
       }
 
@@ -400,9 +402,13 @@ class ContentScript {
       const overlay = document.createElement('div');
       overlay.id = OVERLAY_ID;
       overlay.style.cssText = [
-        'position:fixed', 'inset:0', 'z-index:2147483647',
-        'background:rgba(0,0,0,0.55)', 'display:flex',
-        'align-items:center', 'justify-content:center',
+        'position:fixed',
+        'inset:0',
+        'z-index:2147483647',
+        'background:rgba(0,0,0,0.55)',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
         'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
       ].join(';');
 
@@ -413,11 +419,14 @@ class ContentScript {
       const inputBg = isDark ? '#313244' : '#f8f8ff';
 
       const logLines = consoleLogs.length
-        ? consoleLogs.map(e =>
-            `<span style="opacity:.6;font-size:11px">[${e.timestamp.substring(11, 23)}]</span> ` +
-            `<b style="color:${e.level === 'error' ? '#f38ba8' : e.level === 'warn' ? '#fab387' : '#89dceb'}">${e.level.toUpperCase()}</b> ` +
-            `${e.message.replace(/</g, '&lt;')}`
-          ).join('\n')
+        ? consoleLogs
+            .map(
+              e =>
+                `<span style="opacity:.6;font-size:11px">[${e.timestamp.substring(11, 23)}]</span> ` +
+                `<b style="color:${e.level === 'error' ? '#f38ba8' : e.level === 'warn' ? '#fab387' : '#89dceb'}">${e.level.toUpperCase()}</b> ` +
+                `${e.message.replace(/</g, '&lt;')}`
+            )
+            .join('\n')
         : 'No console entries captured.';
 
       overlay.innerHTML = `
@@ -465,7 +474,9 @@ class ContentScript {
       const close = () => overlay.remove();
       overlay.querySelector('#lup-rp-close')!.addEventListener('click', close);
       overlay.querySelector('#lup-rp-cancel')!.addEventListener('click', close);
-      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) close();
+      });
 
       const submitBtn = overlay.querySelector('#lup-rp-submit') as HTMLButtonElement;
       const statusDiv = overlay.querySelector('#lup-rp-status') as HTMLElement;
@@ -480,16 +491,20 @@ class ContentScript {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Creating Case…';
 
-        window.postMessage({
-          type: 'LEVELUP_REQUEST',
-          action: 'navigation:report-problem',
-          data: { description: desc, url, consoleLogs },
-          requestId: `rp_submit_${Date.now()}`,
-        }, window.location.origin);
+        window.postMessage(
+          {
+            type: 'LEVELUP_REQUEST',
+            action: 'navigation:report-problem',
+            data: { description: desc, url, consoleLogs },
+            requestId: `rp_submit_${Date.now()}`,
+          },
+          window.location.origin
+        );
 
         const respListener = (ev: MessageEvent) => {
           if (ev.source !== window) return;
-          if (ev.data?.type !== 'LEVELUP_RESPONSE' || !ev.data?.requestId?.startsWith('rp_submit_')) return;
+          if (ev.data?.type !== 'LEVELUP_RESPONSE' || !ev.data?.requestId?.startsWith('rp_submit_'))
+            return;
           window.removeEventListener('message', respListener);
 
           const statusOk = isDark ? '#a6e3a1' : '#166534';
@@ -531,11 +546,14 @@ class ContentScript {
       }
     };
     window.addEventListener('message', logListener);
-    window.postMessage({
-      type: 'LEVELUP_REQUEST',
-      action: 'navigation:get-console-logs',
-      requestId,
-    }, window.location.origin);
+    window.postMessage(
+      {
+        type: 'LEVELUP_REQUEST',
+        action: 'navigation:get-console-logs',
+        requestId,
+      },
+      window.location.origin
+    );
     // Fallback: build overlay after 1.5s even if logs don't arrive
     window.setTimeout(() => {
       window.removeEventListener('message', logListener);
@@ -544,7 +562,6 @@ class ContentScript {
   }
 
   private handleMetadataRequest(sendResponse: (response: ContentScriptResponse) => void): void {
-
     // Forward the request to the injected script to get entities from Dynamics 365
     const requestId = Date.now().toString();
     window.postMessage(

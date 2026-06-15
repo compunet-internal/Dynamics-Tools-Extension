@@ -115,16 +115,17 @@ export class LevelUpExtension {
       // Try to pull out just the Dataverse error message
       try {
         const parsed = JSON.parse(body);
-        const msg =
-          parsed?.error?.message ||
-          parsed?.Message ||
-          parsed?.ExceptionMessage;
+        const msg = parsed?.error?.message || parsed?.Message || parsed?.ExceptionMessage;
         if (msg) detail = msg.substring(0, 400);
       } catch {
         // keep raw body
       }
       const message = `[${method}] HTTP ${status} ${baseUrl} — ${detail}`;
-      self.consoleLogBuffer.push({ level: 'http-error', message, timestamp: new Date().toISOString() });
+      self.consoleLogBuffer.push({
+        level: 'http-error',
+        message,
+        timestamp: new Date().toISOString(),
+      });
       if (self.consoleLogBuffer.length > self.MAX_CONSOLE_ENTRIES) self.consoleLogBuffer.shift();
     };
 
@@ -137,11 +138,16 @@ export class LevelUpExtension {
           : input instanceof URL
             ? input.href
             : (input as Request).url;
-      const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+      const method = (
+        init?.method || (input instanceof Request ? input.method : 'GET')
+      ).toUpperCase();
       const response = await originalFetch(input, init);
       if (isDataverseUrl(url) && !response.ok) {
         try {
-          const text = await response.clone().text().catch(() => '');
+          const text = await response
+            .clone()
+            .text()
+            .catch(() => '');
           recordHttpError(response.status, method, url, text);
         } catch {
           // ignore

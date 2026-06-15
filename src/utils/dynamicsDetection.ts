@@ -154,9 +154,7 @@ export const getTableContextFromMakeUrl = (url: string | undefined): MakeTableCo
     if (entityIdx >= 0 && segments[entityIdx + 1]) {
       // Extract solution ID if this is a solution-scoped URL: segments[0]='e', segments[2]='s'
       const solutionId =
-        segments[0] === 'e' && segments[2] === 's' && segments[3]
-          ? segments[3]
-          : undefined;
+        segments[0] === 'e' && segments[2] === 's' && segments[3] ? segments[3] : undefined;
       return { logicalName: segments[entityIdx + 1], solutionId };
     }
     return null;

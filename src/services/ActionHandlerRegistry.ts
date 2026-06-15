@@ -265,9 +265,7 @@ export class ActionHandlerRegistry {
           `⚠️ [ActionHandlerRegistry] Content script not reachable for: ${fullAction}. ` +
             'Reload the page to reconnect.'
         );
-        throw new Error(
-          'Cannot reach the page. Please reload the tab and try again.'
-        );
+        throw new Error('Cannot reach the page. Please reload the tab and try again.');
       }
       console.error(`❌ [ActionHandlerRegistry] Failed to execute: ${fullAction}`, error);
       throw error;

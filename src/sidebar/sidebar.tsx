@@ -160,7 +160,9 @@ const App: React.FC = () => {
       } else if (makePage) {
         // Extract environment display name from URL — covers both make.powerapps.com and admin.powerplatform.microsoft.com
         const envId = getPowerPlatformEnvironmentIdFromUrl(tab.url);
-        const isAdminPage = /^https:\/\/admin\.powerplatform\.microsoft\.com\//i.test(tab.url || '');
+        const isAdminPage = /^https:\/\/admin\.powerplatform\.microsoft\.com\//i.test(
+          tab.url || ''
+        );
         const hostLabel = isAdminPage ? 'admin.powerplatform.microsoft.com' : 'make.powerapps.com';
         setEnvironmentUrl(envId ? `${hostLabel} (${envId.substring(0, 8)}…)` : hostLabel);
         setIsFormContext(false);
@@ -275,7 +277,6 @@ const App: React.FC = () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const envId = getPowerPlatformEnvironmentIdFromUrl(tab?.url);
 
-
     /** Resolve the Dataverse org URL for MetadataId lookups.
      * Priority: (1) content script same-origin API, (2) stored URL keyed by
      * the CURRENT envId (set when visiting that env's crm page).
@@ -327,7 +328,7 @@ const App: React.FC = () => {
           // Try to resolve the MetadataId via stored or page-scanned Dataverse URL
           const clientUrl = await resolveClientUrl();
           const metadataId = clientUrl
-            ? (await fetchEntityMetadataId(clientUrl, tableCtx.logicalName)) ?? undefined
+            ? ((await fetchEntityMetadataId(clientUrl, tableCtx.logicalName)) ?? undefined)
             : undefined;
           if (metadataId) {
             url = `https://make.powerapps.com/environments/${envId}/entities/${metadataId}`;
@@ -362,14 +363,35 @@ const App: React.FC = () => {
   };
 
   const favoriteButtons = useMemo(() => {
-    const all = [...memoizedFormActions, ...memoizedTableActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
+    const all = [
+      ...memoizedFormActions,
+      ...memoizedTableActions,
+      ...memoizedNavigationActions,
+      ...memoizedDebuggingActions,
+    ];
     return all.filter(a => favoriteIds.includes(a.id));
-  }, [memoizedFormActions, memoizedTableActions, memoizedNavigationActions, memoizedDebuggingActions, favoriteIds]);
+  }, [
+    memoizedFormActions,
+    memoizedTableActions,
+    memoizedNavigationActions,
+    memoizedDebuggingActions,
+    favoriteIds,
+  ]);
 
   // All actions for recently used component
   const allActions = useMemo(() => {
-    return [...memoizedFormActions, ...memoizedTableActions, ...memoizedNavigationActions, ...memoizedDebuggingActions];
-  }, [memoizedFormActions, memoizedTableActions, memoizedNavigationActions, memoizedDebuggingActions]);
+    return [
+      ...memoizedFormActions,
+      ...memoizedTableActions,
+      ...memoizedNavigationActions,
+      ...memoizedDebuggingActions,
+    ];
+  }, [
+    memoizedFormActions,
+    memoizedTableActions,
+    memoizedNavigationActions,
+    memoizedDebuggingActions,
+  ]);
 
   const filteredFormActions = useMemo(
     () => memoizedFormActions.filter(a => !favoriteIds.includes(a.id)),
@@ -380,7 +402,10 @@ const App: React.FC = () => {
     [memoizedTableActions, favoriteIds]
   );
   const filteredNavigationActions = useMemo(
-    () => memoizedNavigationActions.filter(a => !favoriteIds.includes(a.id) && a.id !== 'navigation:report-problem'),
+    () =>
+      memoizedNavigationActions.filter(
+        a => !favoriteIds.includes(a.id) && a.id !== 'navigation:report-problem'
+      ),
     [memoizedNavigationActions, favoriteIds]
   );
   const filteredDebuggingActions = useMemo(

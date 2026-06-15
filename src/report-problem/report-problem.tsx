@@ -38,7 +38,10 @@ const ReportProblemPage: React.FC = () => {
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [resultMessage, setResultMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [resultMessage, setResultMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     // Get the URL from the opener tab (passed via storage)
@@ -83,7 +86,10 @@ const ReportProblemPage: React.FC = () => {
         setResultMessage({ type: 'error', text: response.error ?? 'Failed to create case.' });
       }
     } catch (error) {
-      setResultMessage({ type: 'error', text: error instanceof Error ? error.message : 'Unknown error' });
+      setResultMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -120,9 +126,7 @@ const ReportProblemPage: React.FC = () => {
           </Typography>
         </Box>
 
-        {resultMessage && (
-          <Alert severity={resultMessage.type}>{resultMessage.text}</Alert>
-        )}
+        {resultMessage && <Alert severity={resultMessage.type}>{resultMessage.text}</Alert>}
 
         <TextField
           label='Page URL'
@@ -159,7 +163,11 @@ const ReportProblemPage: React.FC = () => {
               {loadingLogs ? (
                 <CircularProgress size={14} />
               ) : (
-                <Chip label={consoleLogs.length} size='small' sx={{ height: 18, fontSize: '0.7rem' }} />
+                <Chip
+                  label={consoleLogs.length}
+                  size='small'
+                  sx={{ height: 18, fontSize: '0.7rem' }}
+                />
               )}
             </Box>
           </AccordionSummary>
@@ -191,7 +199,12 @@ const ReportProblemPage: React.FC = () => {
                       color={LEVEL_COLORS[entry.level] ?? 'default'}
                       sx={{ height: 16, fontSize: '0.6rem', mr: 0.5, verticalAlign: 'middle' }}
                     />
-                    <Typography component='span' variant='caption' color='text.secondary' sx={{ mr: 0.5 }}>
+                    <Typography
+                      component='span'
+                      variant='caption'
+                      color='text.secondary'
+                      sx={{ mr: 0.5 }}
+                    >
                       {entry.timestamp.substring(11, 23)}
                     </Typography>
                     {entry.message}
