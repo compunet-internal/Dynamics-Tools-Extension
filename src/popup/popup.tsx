@@ -73,6 +73,7 @@ const PopupApp: React.FC = () => {
   const [isMakePage, setIsMakePage] = useState(false);
   const [makeTableContext, setMakeTableContext] = useState<MakeTableContext | null>(null);
   const [makeClientUrl, setMakeClientUrl] = useState<string | null>(null);
+  const [userHasAccess, setUserHasAccess] = useState<boolean | null>(null);
 
   const normalizeSolutionId = (solutionId: string | undefined) =>
     (solutionId || '').replace(/[{}]/g, '').toLowerCase();
@@ -314,6 +315,7 @@ const PopupApp: React.FC = () => {
               setMakeClientUrl(storedClientUrl);
               setIsFormContext(false);
               setContextMessage('');
+              setUserHasAccess(null);
             }
             return;
           }
@@ -330,6 +332,7 @@ const PopupApp: React.FC = () => {
                 setMakeClientUrl(storedClientUrl);
                 setIsFormContext(false);
                 setContextMessage('');
+                setUserHasAccess(null);
               }
               return;
             }
@@ -362,12 +365,41 @@ const PopupApp: React.FC = () => {
           pageType = detectedPageType;
         }
 
+        // Check whether the user has the required role before enabling all actions.
+        let hasAccess = false;
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id) {
+            const resp = await new Promise<{ success: boolean; data?: unknown }>(resolve => {
+              let done = false;
+              const tid = window.setTimeout(() => {
+                if (!done) { done = true; resolve({ success: false }); }
+              }, 5000);
+              chrome.tabs.sendMessage(
+                tab.id!,
+                { type: 'LEVELUP_REQUEST', action: 'admin:get-user-info', requestId: Date.now().toString() },
+                response => {
+                  if (done) return;
+                  done = true;
+                  window.clearTimeout(tid);
+                  resolve(response || { success: false });
+                }
+              );
+            });
+            if (resp.success && resp.data) {
+              hasAccess = !!(resp.data as Record<string, unknown>).hasAdminOrCustomizerRole;
+            }
+          }
+        } catch {
+          // default to no access on error
+        }
         if (!cancelled) {
           setIsConnected(true);
           setIsContextReady(true);
           setIsFormContext(pageType === 'entityrecord');
           setIsListContext(pageType === 'entitylist');
           setContextMessage('');
+          setUserHasAccess(hasAccess);
         }
       } catch (error) {
         if (!cancelled) {
@@ -1091,6 +1123,29 @@ const PopupApp: React.FC = () => {
 
         {isContextReady && (
           <>
+            {/* Gate all tools behind role check for direct Dynamics pages */}
+            {!isMakePage && userHasAccess === false ? (
+              <Box
+                sx={{
+                  mt: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  py: 2,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant='subtitle2' sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                  Insufficient permissions
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.4 }}>
+                  The System Administrator or System Customizer role is required to use this
+                  extension.
+                </Typography>
+              </Box>
+            ) : (
+              <>
             {/* Default solution selector moved to top of popup */}
             {extensionConfig.showNavigationSection && (
               <Box sx={{ mb: 1.5 }}>
@@ -1599,6 +1654,9 @@ const PopupApp: React.FC = () => {
                     })}
                 </Box>
               </Box>
+            )}
+
+              </>
             )}
 
             {/* Report a Problem - above hide toggle */}

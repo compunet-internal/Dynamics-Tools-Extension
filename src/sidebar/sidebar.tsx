@@ -70,6 +70,7 @@ const App: React.FC = () => {
   );
   const [favoriteIds, setFavoriteIds] = useState<DynamicsAction[]>([]);
   const [environmentUrl, setEnvironmentUrl] = useState<string>('');
+  const [userHasAccess, setUserHasAccess] = useState<boolean | null>(null);
   const [currentSolutionTooltip, setCurrentSolutionTooltip] = useState(
     'Choose the default solution CompuNet Dynamics Tools should use in this environment'
   );
@@ -157,7 +158,18 @@ const App: React.FC = () => {
         setIsFormContext(pageType === 'entityrecord');
         setIsListContext(pageType === 'entitylist');
         setMakeTableContext(null);
+        // Check whether the current user has the System Administrator or System Customizer role.
+        // If they don't, we show a minimal sidebar (Report a Problem only).
+        try {
+          const userInfo = await messageService.sendMessageTyped<CurrentUserInfo>(
+            'admin:get-user-info'
+          );
+          setUserHasAccess(userInfo?.hasAdminOrCustomizerRole ?? false);
+        } catch {
+          setUserHasAccess(false);
+        }
       } else if (makePage) {
+        setUserHasAccess(null); // Make pages skip role check — Xrm is unavailable
         // Extract environment display name from URL — covers both make.powerapps.com and admin.powerplatform.microsoft.com
         const envId = getPowerPlatformEnvironmentIdFromUrl(tab.url);
         const isAdminPage = /^https:\/\/admin\.powerplatform\.microsoft\.com\//i.test(
@@ -175,6 +187,7 @@ const App: React.FC = () => {
         setIsFormContext(false);
         setIsListContext(false);
         setMakeClientUrl(null);
+        setUserHasAccess(null);
       }
     };
 
@@ -608,11 +621,36 @@ const App: React.FC = () => {
         >
           {/* header left / actions could go here */}
         </Box>
-        {isConnected && !isMakePage && extensionConfig.showImpersonation && <Impersonation />}
+        {isConnected && !isMakePage && userHasAccess === true && extensionConfig.showImpersonation && <Impersonation />}
       </Box>
 
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
         {isConnected ? (
+          // On Dynamics pages (non-make), require System Administrator or System Customizer role.
+          // Make pages skip the role check since Xrm is unavailable there.
+          !isMakePage && userHasAccess === false ? (
+            <Box
+              sx={{
+                padding: '24px 16px',
+                textAlign: 'center',
+                color: 'text.secondary',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1.5,
+                height: '100%',
+              }}
+            >
+              <Box component='p' sx={{ margin: 0, fontWeight: 500 }}>
+                Insufficient permissions
+              </Box>
+              <Box component='p' sx={{ fontSize: '0.875rem', margin: 0 }}>
+                The System Administrator or System Customizer role is required to use this
+                extension.
+              </Box>
+            </Box>
+          ) : (
           <>
             {extensionConfig.showRecentlyUsed && (
               <RecentlyUsed
@@ -695,8 +733,7 @@ const App: React.FC = () => {
                   )}
               </>
             )}
-          </>
-        ) : (
+          </>          )        ) : (
           <Box
             sx={{
               padding: '24px 16px',
