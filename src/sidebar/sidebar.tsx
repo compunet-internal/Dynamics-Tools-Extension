@@ -637,88 +637,88 @@ const App: React.FC = () => {
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
         {isConnected ? (
           <>
-              {extensionConfig.showRecentlyUsed && (
-                <RecentlyUsed
-                  allActions={allActions}
-                  onActionClick={handleActionClick}
-                  onActionUsed={() => {}} // This is handled by the custom event
-                />
-              )}
-              {extensionConfig.showFavorites && favoriteButtons.length > 0 && (
-                <Favorites
-                  favoriteButtons={favoriteButtons}
-                  onActionClick={handleActionClick}
-                  onFavoriteToggle={handleFavoriteToggle}
-                />
-              )}
-              {extensionConfig.showCustomCommands && (
-                <MyCommands
-                  onToast={(message, severity) => {
-                    setToastMessage(message);
-                    setToastSeverity(severity);
-                    setToastOpen(true);
-                  }}
-                />
-              )}
-              {extensionConfig.showActionSections && (
-                <>
-                  {extensionConfig.showFormSection !== false && filteredFormActions.length > 0 && (
+            {extensionConfig.showRecentlyUsed && (
+              <RecentlyUsed
+                allActions={allActions}
+                onActionClick={handleActionClick}
+                onActionUsed={() => {}} // This is handled by the custom event
+              />
+            )}
+            {extensionConfig.showFavorites && favoriteButtons.length > 0 && (
+              <Favorites
+                favoriteButtons={favoriteButtons}
+                onActionClick={handleActionClick}
+                onFavoriteToggle={handleFavoriteToggle}
+              />
+            )}
+            {extensionConfig.showCustomCommands && (
+              <MyCommands
+                onToast={(message, severity) => {
+                  setToastMessage(message);
+                  setToastSeverity(severity);
+                  setToastOpen(true);
+                }}
+              />
+            )}
+            {extensionConfig.showActionSections && (
+              <>
+                {extensionConfig.showFormSection !== false && filteredFormActions.length > 0 && (
+                  <ActionSection
+                    title='Form'
+                    buttons={filteredFormActions}
+                    onActionClick={handleActionClick}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    favoriteIds={favoriteIds}
+                    isFormContext={isFormContext}
+                    isMakePage={isMakePage}
+                    makeTableContext={makeTableContext}
+                    unavailableMessage={
+                      !isFormContext && !isMakePage
+                        ? 'Open a record to use Form Actions'
+                        : undefined
+                    }
+                  />
+                )}
+                {extensionConfig.showFormSection !== false &&
+                  filteredTableActions.length > 0 &&
+                  (isFormContext || isListContext || (isMakePage && !!makeTableContext)) && (
                     <ActionSection
-                      title='Form'
-                      buttons={filteredFormActions}
+                      title='Table'
+                      buttons={filteredTableActions}
                       onActionClick={handleActionClick}
                       onFavoriteToggle={handleFavoriteToggle}
                       favoriteIds={favoriteIds}
                       isFormContext={isFormContext}
                       isMakePage={isMakePage}
                       makeTableContext={makeTableContext}
-                      unavailableMessage={
-                        !isFormContext && !isMakePage
-                          ? 'Open a record to use Form Actions'
-                          : undefined
-                      }
                     />
                   )}
-                  {extensionConfig.showFormSection !== false &&
-                    filteredTableActions.length > 0 &&
-                    (isFormContext || isListContext || (isMakePage && !!makeTableContext)) && (
-                      <ActionSection
-                        title='Table'
-                        buttons={filteredTableActions}
-                        onActionClick={handleActionClick}
-                        onFavoriteToggle={handleFavoriteToggle}
-                        favoriteIds={favoriteIds}
-                        isFormContext={isFormContext}
-                        isMakePage={isMakePage}
-                        makeTableContext={makeTableContext}
-                      />
-                    )}
-                  {extensionConfig.showNavigationSection !== false &&
-                    filteredNavigationActions.length > 0 && (
-                      <ActionSection
-                        title='Navigation'
-                        buttons={filteredNavigationActions}
-                        onActionClick={handleActionClick}
-                        onFavoriteToggle={handleFavoriteToggle}
-                        favoriteIds={favoriteIds}
-                        isMakePage={isMakePage}
-                        makeTableContext={makeTableContext}
-                      />
-                    )}
-                  {extensionConfig.showDebuggingSection !== false &&
-                    filteredDebuggingActions.length > 0 && (
-                      <ActionSection
-                        title='Debugging'
-                        buttons={filteredDebuggingActions}
-                        onActionClick={handleActionClick}
-                        onFavoriteToggle={handleFavoriteToggle}
-                        favoriteIds={favoriteIds}
-                        isMakePage={isMakePage}
-                      />
-                    )}
-                </>
-              )}
-            </>
+                {extensionConfig.showNavigationSection !== false &&
+                  filteredNavigationActions.length > 0 && (
+                    <ActionSection
+                      title='Navigation'
+                      buttons={filteredNavigationActions}
+                      onActionClick={handleActionClick}
+                      onFavoriteToggle={handleFavoriteToggle}
+                      favoriteIds={favoriteIds}
+                      isMakePage={isMakePage}
+                      makeTableContext={makeTableContext}
+                    />
+                  )}
+                {extensionConfig.showDebuggingSection !== false &&
+                  filteredDebuggingActions.length > 0 && (
+                    <ActionSection
+                      title='Debugging'
+                      buttons={filteredDebuggingActions}
+                      onActionClick={handleActionClick}
+                      onFavoriteToggle={handleFavoriteToggle}
+                      favoriteIds={favoriteIds}
+                      isMakePage={isMakePage}
+                    />
+                  )}
+              </>
+            )}
+          </>
         ) : (
           <Box
             sx={{
