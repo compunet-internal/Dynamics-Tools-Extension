@@ -373,11 +373,18 @@ const PopupApp: React.FC = () => {
             const resp = await new Promise<{ success: boolean; data?: unknown }>(resolve => {
               let done = false;
               const tid = window.setTimeout(() => {
-                if (!done) { done = true; resolve({ success: false }); }
+                if (!done) {
+                  done = true;
+                  resolve({ success: false });
+                }
               }, 5000);
               chrome.tabs.sendMessage(
                 tab.id!,
-                { type: 'LEVELUP_REQUEST', action: 'admin:get-user-info', requestId: Date.now().toString() },
+                {
+                  type: 'LEVELUP_REQUEST',
+                  action: 'admin:get-user-info',
+                  requestId: Date.now().toString(),
+                },
                 response => {
                   if (done) return;
                   done = true;
@@ -1146,516 +1153,519 @@ const PopupApp: React.FC = () => {
               </Box>
             ) : (
               <>
-            {/* Default solution selector moved to top of popup */}
-            {extensionConfig.showNavigationSection && (
-              <Box sx={{ mb: 1.5 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    mb: 0.5,
-                  }}
-                >
-                  <Typography
-                    variant='subtitle2'
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: 'text.primary',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.3px',
-                      opacity: 0.8,
-                    }}
-                  >
-                    Default Solution
-                  </Typography>
-                  <Tooltip
-                    title={
-                      isStaleSolutions
-                        ? 'Refresh solutions (showing cached data)'
-                        : 'Refresh solutions list'
-                    }
-                  >
-                    <span>
-                      <IconButton
-                        size='small'
-                        disabled={
-                          isRefreshingSolutions ||
-                          isSavingSolution ||
-                          !isConnected ||
-                          (isMakePage && !makeClientUrl)
-                        }
-                        onClick={() => refreshSolutionState()}
-                        sx={{ p: 0.25 }}
-                      >
-                        <RefreshIcon
-                          sx={{
-                            fontSize: 14,
-                            animation: isRefreshingSolutions ? 'spin 1s linear infinite' : 'none',
-                            '@keyframes spin': {
-                              '0%': { transform: 'rotate(0deg)' },
-                              '100%': { transform: 'rotate(360deg)' },
-                            },
-                          }}
-                        />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Box>
-                <Box
-                  sx={{
-                    p: 0.5,
-                    backgroundColor: theme =>
-                      theme.palette.mode === 'dark'
-                        ? theme.palette.background.paper
-                        : 'rgba(255,255,255,0.85)',
-                    borderRadius: '6px',
-                    border: theme => `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <FormControl
-                    fullWidth
-                    size='small'
-                    disabled={
-                      isLoadingSolutions ||
-                      isSavingSolution ||
-                      !isConnected ||
-                      (isMakePage && !makeClientUrl && solutions.length === 0)
-                    }
-                  >
-                    <Select
-                      value={selectedSolutionId}
-                      onChange={handleDefaultSolutionChange}
-                      onOpen={handleDropdownOpen}
-                      displayEmpty
-                      renderValue={value => {
-                        if (isLoadingSolutions) {
-                          return (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <CircularProgress size={12} />
-                              <span style={{ fontSize: '0.8rem' }}>Loading solutions...</span>
-                            </Box>
-                          );
-                        }
-                        const sol = solutions.find(s => s.solutionid === value);
-                        return sol
-                          ? sol.friendlyname
-                          : value
-                            ? String(value)
-                            : 'Select solution...';
-                      }}
+                {/* Default solution selector moved to top of popup */}
+                {extensionConfig.showNavigationSection && (
+                  <Box sx={{ mb: 1.5 }}>
+                    <Box
                       sx={{
-                        '& .MuiSelect-select': {
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          display: 'block',
-                        },
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mb: 0.5,
                       }}
                     >
-                      {solutions.length === 0 && !isLoadingSolutions && (
-                        <MenuItem value='' disabled>
-                          No solutions available
-                        </MenuItem>
-                      )}
-                      {solutions.map(solution => {
-                        const isCurrent =
-                          normalizeSolutionId(solution.solutionid) ===
-                          normalizeSolutionId(currentSolutionId);
-
-                        return (
-                          <MenuItem key={solution.solutionid} value={solution.solutionid}>
-                            <Box
+                      <Typography
+                        variant='subtitle2'
+                        sx={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: 'text.primary',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.3px',
+                          opacity: 0.8,
+                        }}
+                      >
+                        Default Solution
+                      </Typography>
+                      <Tooltip
+                        title={
+                          isStaleSolutions
+                            ? 'Refresh solutions (showing cached data)'
+                            : 'Refresh solutions list'
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size='small'
+                            disabled={
+                              isRefreshingSolutions ||
+                              isSavingSolution ||
+                              !isConnected ||
+                              (isMakePage && !makeClientUrl)
+                            }
+                            onClick={() => refreshSolutionState()}
+                            sx={{ p: 0.25 }}
+                          >
+                            <RefreshIcon
                               sx={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 1,
-                                minWidth: 0,
+                                fontSize: 14,
+                                animation: isRefreshingSolutions
+                                  ? 'spin 1s linear infinite'
+                                  : 'none',
+                                '@keyframes spin': {
+                                  '0%': { transform: 'rotate(0deg)' },
+                                  '100%': { transform: 'rotate(360deg)' },
+                                },
                               }}
-                            >
-                              <span
-                                style={{
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  minWidth: 0,
-                                  flex: 1,
-                                }}
-                              >
-                                {solution.friendlyname}
-                              </span>
-                              {isCurrent &&
-                                (isStaleSolutions ? (
-                                  <CheckCircleOutlinedIcon
-                                    sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }}
-                                  />
-                                ) : (
-                                  <CheckCircleIcon
-                                    sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }}
-                                  />
-                                ))}
-                            </Box>
-                          </MenuItem>
-                        );
-                      })}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-            )}
-
-            {/* Form Actions */}
-            {extensionConfig.showFormSection && !isMakePage && isDirectDynamicsPage && (
-              <Box sx={{ mb: 1.5 }}>
-                <Typography
-                  variant='subtitle2'
-                  sx={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    mb: 0.5,
-                    color: 'text.primary',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.3px',
-                    opacity: 0.8,
-                  }}
-                >
-                  Form Actions
-                </Typography>
-                {!isFormContext ? (
-                  <Alert severity='info' sx={{ fontSize: '0.72rem', py: 0.5 }}>
-                    Open a record to use Form Actions
-                  </Alert>
-                ) : (
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: 0.5,
-                      p: 0.5,
-                      backgroundColor: theme =>
-                        theme.palette.mode === 'dark'
-                          ? theme.palette.background.paper
-                          : 'rgba(255,255,255,0.85)',
-                      borderRadius: '6px',
-                      border: theme => `1px solid ${theme.palette.divider}`,
-                      alignItems: 'stretch',
-                    }}
-                  >
-                    {formActions.map((action: ActionConfig) => {
-                      const label = action.label || '';
-                      const lowered = label.toLowerCase();
-                      const getShort = (text: string) => {
-                        if (text.indexOf('url') !== -1) return 'URL';
-                        if (text.indexOf('clone') !== -1) return 'Clone';
-                        if (text.indexOf('id') !== -1) return 'ID';
-                        if (text.indexOf('find') !== -1) return 'Find';
-                        if (text.indexOf('new') !== -1) return 'New';
-                        if (text.indexOf('record') !== -1) return 'Record';
-                        if (text.indexOf('solution') !== -1) return 'Solution';
-                        return text.split(' ')[0].slice(0, 8);
-                      };
-                      const getIcon = (text: string) => {
-                        if (text.indexOf('url') !== -1) return '🔗';
-                        if (text.indexOf('clone') !== -1) return '📋';
-                        if (text.indexOf('id') !== -1) return '🆔';
-                        if (text.indexOf('find') !== -1) return '🔍';
-                        if (text.indexOf('job') !== -1) return '⚙️';
-                        if (text.indexOf('solution') !== -1) return '📦';
-                        if (text.indexOf('record') !== -1) return '📄';
-                        return '🔧';
-                      };
-
-                      const short = action.shortLabel || getShort(lowered);
-                      const iconEmoji = action.shortIcon || getIcon(lowered);
-                      const IconComp = (action.icon || null) as React.ComponentType<any> | null;
-                      const available = isMakePage
-                        ? action.requiresMakeTableContext
-                          ? !!makeTableContext
-                          : false
-                        : action.requiresFormContext
-                          ? isFormContext
-                          : true;
-
-                      return (
-                        <Link
-                          key={action.id}
-                          component='button'
-                          onClick={
-                            available
-                              ? (e: React.MouseEvent) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleActionClick(action.id, e.shiftKey);
-                                }
-                              : undefined
-                          }
-                          sx={{
-                            color: 'text.primary',
-                            textDecoration: 'none',
-                            fontSize: '0.7rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: available ? 'pointer' : 'not-allowed',
-                            padding: '6px 4px',
-                            borderRadius: '6px',
-                            fontWeight: 600,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 0.25,
-                            opacity: available ? 1 : 0.4,
-                            transition: 'all 0.12s ease',
-                            '&:hover': available
-                              ? {
-                                  backgroundColor: theme =>
-                                    theme.palette.mode === 'dark'
-                                      ? 'rgba(255,255,255,0.02)'
-                                      : 'rgba(0,0,0,0.04)',
-                                  transform: 'translateY(-2px)',
-                                }
-                              : {},
+                            />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Box>
+                    <Box
+                      sx={{
+                        p: 0.5,
+                        backgroundColor: theme =>
+                          theme.palette.mode === 'dark'
+                            ? theme.palette.background.paper
+                            : 'rgba(255,255,255,0.85)',
+                        borderRadius: '6px',
+                        border: theme => `1px solid ${theme.palette.divider}`,
+                      }}
+                    >
+                      <FormControl
+                        fullWidth
+                        size='small'
+                        disabled={
+                          isLoadingSolutions ||
+                          isSavingSolution ||
+                          !isConnected ||
+                          (isMakePage && !makeClientUrl && solutions.length === 0)
+                        }
+                      >
+                        <Select
+                          value={selectedSolutionId}
+                          onChange={handleDefaultSolutionChange}
+                          onOpen={handleDropdownOpen}
+                          displayEmpty
+                          renderValue={value => {
+                            if (isLoadingSolutions) {
+                              return (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <CircularProgress size={12} />
+                                  <span style={{ fontSize: '0.8rem' }}>Loading solutions...</span>
+                                </Box>
+                              );
+                            }
+                            const sol = solutions.find(s => s.solutionid === value);
+                            return sol
+                              ? sol.friendlyname
+                              : value
+                                ? String(value)
+                                : 'Select solution...';
                           }}
-                          title={
-                            available
-                              ? action.tooltip || action.label
-                              : isMakePage
-                                ? `${action.label} — requires table context on make.powerapps.com`
-                                : `${action.label} — requires an open form`
-                          }
+                          sx={{
+                            '& .MuiSelect-select': {
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              display: 'block',
+                            },
+                          }}
                         >
-                          {IconComp ? (
-                            <IconComp sx={{ fontSize: 18 }} />
-                          ) : (
-                            <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                          {solutions.length === 0 && !isLoadingSolutions && (
+                            <MenuItem value='' disabled>
+                              No solutions available
+                            </MenuItem>
                           )}
-                          <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
-                        </Link>
-                      );
-                    })}
+                          {solutions.map(solution => {
+                            const isCurrent =
+                              normalizeSolutionId(solution.solutionid) ===
+                              normalizeSolutionId(currentSolutionId);
+
+                            return (
+                              <MenuItem key={solution.solutionid} value={solution.solutionid}>
+                                <Box
+                                  sx={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 1,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      minWidth: 0,
+                                      flex: 1,
+                                    }}
+                                  >
+                                    {solution.friendlyname}
+                                  </span>
+                                  {isCurrent &&
+                                    (isStaleSolutions ? (
+                                      <CheckCircleOutlinedIcon
+                                        sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }}
+                                      />
+                                    ) : (
+                                      <CheckCircleIcon
+                                        sx={{ fontSize: 16, color: 'success.main', flexShrink: 0 }}
+                                      />
+                                    ))}
+                                </Box>
+                              </MenuItem>
+                            );
+                          })}
+                        </Select>
+                      </FormControl>
+                    </Box>
                   </Box>
                 )}
-              </Box>
-            )}
 
-            {/* Table Actions */}
-            {extensionConfig.showFormSection &&
-              (isFormContext || isListContext || (isMakePage && !!makeTableContext)) && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Typography
-                    variant='subtitle2'
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      mb: 0.5,
-                      color: 'text.primary',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.3px',
-                      opacity: 0.8,
-                    }}
-                  >
-                    Table Actions
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: 0.5,
-                      p: 0.5,
-                      backgroundColor: theme =>
-                        theme.palette.mode === 'dark'
-                          ? theme.palette.background.paper
-                          : 'rgba(255,255,255,0.85)',
-                      borderRadius: '6px',
-                      border: theme => `1px solid ${theme.palette.divider}`,
-                      alignItems: 'stretch',
-                    }}
-                  >
-                    {tableActions.map((action: ActionConfig) => {
-                      const IconComp3 = (action.icon || null) as React.ComponentType<any> | null;
-                      const short = action.shortLabel || action.label.split(' ')[0].slice(0, 8);
-                      const iconEmoji = action.shortIcon || '🔧';
-                      const available = isMakePage ? !!makeTableContext : true;
+                {/* Form Actions */}
+                {extensionConfig.showFormSection && !isMakePage && isDirectDynamicsPage && (
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography
+                      variant='subtitle2'
+                      sx={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        mb: 0.5,
+                        color: 'text.primary',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.3px',
+                        opacity: 0.8,
+                      }}
+                    >
+                      Form Actions
+                    </Typography>
+                    {!isFormContext ? (
+                      <Alert severity='info' sx={{ fontSize: '0.72rem', py: 0.5 }}>
+                        Open a record to use Form Actions
+                      </Alert>
+                    ) : (
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(3, 1fr)',
+                          gap: 0.5,
+                          p: 0.5,
+                          backgroundColor: theme =>
+                            theme.palette.mode === 'dark'
+                              ? theme.palette.background.paper
+                              : 'rgba(255,255,255,0.85)',
+                          borderRadius: '6px',
+                          border: theme => `1px solid ${theme.palette.divider}`,
+                          alignItems: 'stretch',
+                        }}
+                      >
+                        {formActions.map((action: ActionConfig) => {
+                          const label = action.label || '';
+                          const lowered = label.toLowerCase();
+                          const getShort = (text: string) => {
+                            if (text.indexOf('url') !== -1) return 'URL';
+                            if (text.indexOf('clone') !== -1) return 'Clone';
+                            if (text.indexOf('id') !== -1) return 'ID';
+                            if (text.indexOf('find') !== -1) return 'Find';
+                            if (text.indexOf('new') !== -1) return 'New';
+                            if (text.indexOf('record') !== -1) return 'Record';
+                            if (text.indexOf('solution') !== -1) return 'Solution';
+                            return text.split(' ')[0].slice(0, 8);
+                          };
+                          const getIcon = (text: string) => {
+                            if (text.indexOf('url') !== -1) return '🔗';
+                            if (text.indexOf('clone') !== -1) return '📋';
+                            if (text.indexOf('id') !== -1) return '🆔';
+                            if (text.indexOf('find') !== -1) return '🔍';
+                            if (text.indexOf('job') !== -1) return '⚙️';
+                            if (text.indexOf('solution') !== -1) return '📦';
+                            if (text.indexOf('record') !== -1) return '📄';
+                            return '🔧';
+                          };
 
-                      return (
-                        <Link
-                          key={action.id}
-                          component='button'
-                          onClick={
-                            available
-                              ? (e: React.MouseEvent) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleActionClick(action.id, e.shiftKey);
-                                }
-                              : undefined
-                          }
-                          sx={{
-                            color: 'text.primary',
-                            textDecoration: 'none',
-                            fontSize: '0.7rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: available ? 'pointer' : 'not-allowed',
-                            padding: '6px 4px',
-                            borderRadius: '6px',
-                            fontWeight: 600,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 0.25,
-                            opacity: available ? 1 : 0.4,
-                            transition: 'all 0.12s ease',
-                            '&:hover': available
-                              ? {
-                                  backgroundColor: theme =>
-                                    theme.palette.mode === 'dark'
-                                      ? 'rgba(255,255,255,0.02)'
-                                      : 'rgba(0,0,0,0.04)',
-                                  transform: 'translateY(-2px)',
-                                }
-                              : {},
-                          }}
-                          title={
-                            available
-                              ? action.tooltip || action.label
-                              : `${action.label} — requires table context`
-                          }
-                        >
-                          {IconComp3 ? (
-                            <IconComp3 sx={{ fontSize: 18 }} />
-                          ) : (
-                            <span style={{ fontSize: 18 }}>{iconEmoji}</span>
-                          )}
-                          <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
-                        </Link>
-                      );
-                    })}
+                          const short = action.shortLabel || getShort(lowered);
+                          const iconEmoji = action.shortIcon || getIcon(lowered);
+                          const IconComp = (action.icon || null) as React.ComponentType<any> | null;
+                          const available = isMakePage
+                            ? action.requiresMakeTableContext
+                              ? !!makeTableContext
+                              : false
+                            : action.requiresFormContext
+                              ? isFormContext
+                              : true;
+
+                          return (
+                            <Link
+                              key={action.id}
+                              component='button'
+                              onClick={
+                                available
+                                  ? (e: React.MouseEvent) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleActionClick(action.id, e.shiftKey);
+                                    }
+                                  : undefined
+                              }
+                              sx={{
+                                color: 'text.primary',
+                                textDecoration: 'none',
+                                fontSize: '0.7rem',
+                                background: 'none',
+                                border: 'none',
+                                cursor: available ? 'pointer' : 'not-allowed',
+                                padding: '6px 4px',
+                                borderRadius: '6px',
+                                fontWeight: 600,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 0.25,
+                                opacity: available ? 1 : 0.4,
+                                transition: 'all 0.12s ease',
+                                '&:hover': available
+                                  ? {
+                                      backgroundColor: theme =>
+                                        theme.palette.mode === 'dark'
+                                          ? 'rgba(255,255,255,0.02)'
+                                          : 'rgba(0,0,0,0.04)',
+                                      transform: 'translateY(-2px)',
+                                    }
+                                  : {},
+                              }}
+                              title={
+                                available
+                                  ? action.tooltip || action.label
+                                  : isMakePage
+                                    ? `${action.label} — requires table context on make.powerapps.com`
+                                    : `${action.label} — requires an open form`
+                              }
+                            >
+                              {IconComp ? (
+                                <IconComp sx={{ fontSize: 18 }} />
+                              ) : (
+                                <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                              )}
+                              <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                            </Link>
+                          );
+                        })}
+                      </Box>
+                    )}
                   </Box>
-                </Box>
-              )}
+                )}
 
-            {/* Navigation Actions */}
-            {extensionConfig.showNavigationSection && (
-              <Box sx={{ mb: 1.5 }}>
-                <Typography
-                  variant='subtitle2'
-                  sx={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    mb: 0.5,
-                    color: 'text.primary',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.3px',
-                    opacity: 0.8,
-                  }}
-                >
-                  Navigation
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: 0.5,
-                    p: 0.5,
-                    backgroundColor: theme =>
-                      theme.palette.mode === 'dark'
-                        ? theme.palette.background.paper
-                        : 'rgba(255,255,255,0.85)',
-                    borderRadius: '6px',
-                    border: theme => `1px solid ${theme.palette.divider}`,
-                    alignItems: 'stretch',
-                  }}
-                >
-                  {navigationActions
-                    .filter(
-                      action =>
-                        action.id !== 'navigation:select-default-solution' &&
-                        action.id !== 'navigation:report-problem'
-                    )
-                    .map((action: ActionConfig) => {
-                      const label = action.label || '';
-                      const lowered = label.toLowerCase();
-                      const short =
-                        action.shortLabel ||
-                        (lowered.indexOf('open') !== -1
-                          ? 'Open'
-                          : lowered.indexOf('list') !== -1
-                            ? 'List'
-                            : lowered.split(' ')[0].slice(0, 8));
-                      const iconEmoji =
-                        action.shortIcon ||
-                        (lowered.indexOf('open') !== -1
-                          ? '🔗'
-                          : lowered.indexOf('list') !== -1
-                            ? '📋'
-                            : '➡️');
-                      const IconComp2 = (action.icon || null) as React.ComponentType<any> | null;
-                      const available = isMakePage
-                        ? action.requiresXrm !== false
-                          ? false
-                          : true
-                        : true;
+                {/* Table Actions */}
+                {extensionConfig.showFormSection &&
+                  (isFormContext || isListContext || (isMakePage && !!makeTableContext)) && (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography
+                        variant='subtitle2'
+                        sx={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          mb: 0.5,
+                          color: 'text.primary',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.3px',
+                          opacity: 0.8,
+                        }}
+                      >
+                        Table Actions
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(3, 1fr)',
+                          gap: 0.5,
+                          p: 0.5,
+                          backgroundColor: theme =>
+                            theme.palette.mode === 'dark'
+                              ? theme.palette.background.paper
+                              : 'rgba(255,255,255,0.85)',
+                          borderRadius: '6px',
+                          border: theme => `1px solid ${theme.palette.divider}`,
+                          alignItems: 'stretch',
+                        }}
+                      >
+                        {tableActions.map((action: ActionConfig) => {
+                          const IconComp3 = (action.icon ||
+                            null) as React.ComponentType<any> | null;
+                          const short = action.shortLabel || action.label.split(' ')[0].slice(0, 8);
+                          const iconEmoji = action.shortIcon || '🔧';
+                          const available = isMakePage ? !!makeTableContext : true;
 
-                      return (
-                        <Link
-                          key={action.id}
-                          component='button'
-                          onClick={(e: React.MouseEvent) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleActionClick(action.id, e.shiftKey);
-                          }}
-                          sx={{
-                            color: 'text.primary',
-                            textDecoration: 'none',
-                            fontSize: '0.7rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: available ? 'pointer' : 'not-allowed',
-                            padding: '6px 4px',
-                            borderRadius: '6px',
-                            fontWeight: 600,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 0.25,
-                            opacity: available ? 1 : 0.4,
-                            transition: 'all 0.12s ease',
-                            '&:hover': available
-                              ? {
-                                  backgroundColor: theme =>
-                                    theme.palette.mode === 'dark'
-                                      ? 'rgba(255,255,255,0.02)'
-                                      : 'rgba(0,0,0,0.04)',
-                                  transform: 'translateY(-2px)',
-                                }
-                              : {},
-                          }}
-                          title={
-                            available
-                              ? action.tooltip || action.label
-                              : `${action.label} — requires a Dynamics page`
-                          }
-                        >
-                          {IconComp2 ? (
-                            <IconComp2 sx={{ fontSize: 18 }} />
-                          ) : (
-                            <span style={{ fontSize: 18 }}>{iconEmoji}</span>
-                          )}
-                          <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
-                        </Link>
-                      );
-                    })}
-                </Box>
-              </Box>
-            )}
+                          return (
+                            <Link
+                              key={action.id}
+                              component='button'
+                              onClick={
+                                available
+                                  ? (e: React.MouseEvent) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleActionClick(action.id, e.shiftKey);
+                                    }
+                                  : undefined
+                              }
+                              sx={{
+                                color: 'text.primary',
+                                textDecoration: 'none',
+                                fontSize: '0.7rem',
+                                background: 'none',
+                                border: 'none',
+                                cursor: available ? 'pointer' : 'not-allowed',
+                                padding: '6px 4px',
+                                borderRadius: '6px',
+                                fontWeight: 600,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 0.25,
+                                opacity: available ? 1 : 0.4,
+                                transition: 'all 0.12s ease',
+                                '&:hover': available
+                                  ? {
+                                      backgroundColor: theme =>
+                                        theme.palette.mode === 'dark'
+                                          ? 'rgba(255,255,255,0.02)'
+                                          : 'rgba(0,0,0,0.04)',
+                                      transform: 'translateY(-2px)',
+                                    }
+                                  : {},
+                              }}
+                              title={
+                                available
+                                  ? action.tooltip || action.label
+                                  : `${action.label} — requires table context`
+                              }
+                            >
+                              {IconComp3 ? (
+                                <IconComp3 sx={{ fontSize: 18 }} />
+                              ) : (
+                                <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                              )}
+                              <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                            </Link>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  )}
 
+                {/* Navigation Actions */}
+                {extensionConfig.showNavigationSection && (
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography
+                      variant='subtitle2'
+                      sx={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        mb: 0.5,
+                        color: 'text.primary',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.3px',
+                        opacity: 0.8,
+                      }}
+                    >
+                      Navigation
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: 0.5,
+                        p: 0.5,
+                        backgroundColor: theme =>
+                          theme.palette.mode === 'dark'
+                            ? theme.palette.background.paper
+                            : 'rgba(255,255,255,0.85)',
+                        borderRadius: '6px',
+                        border: theme => `1px solid ${theme.palette.divider}`,
+                        alignItems: 'stretch',
+                      }}
+                    >
+                      {navigationActions
+                        .filter(
+                          action =>
+                            action.id !== 'navigation:select-default-solution' &&
+                            action.id !== 'navigation:report-problem'
+                        )
+                        .map((action: ActionConfig) => {
+                          const label = action.label || '';
+                          const lowered = label.toLowerCase();
+                          const short =
+                            action.shortLabel ||
+                            (lowered.indexOf('open') !== -1
+                              ? 'Open'
+                              : lowered.indexOf('list') !== -1
+                                ? 'List'
+                                : lowered.split(' ')[0].slice(0, 8));
+                          const iconEmoji =
+                            action.shortIcon ||
+                            (lowered.indexOf('open') !== -1
+                              ? '🔗'
+                              : lowered.indexOf('list') !== -1
+                                ? '📋'
+                                : '➡️');
+                          const IconComp2 = (action.icon ||
+                            null) as React.ComponentType<any> | null;
+                          const available = isMakePage
+                            ? action.requiresXrm !== false
+                              ? false
+                              : true
+                            : true;
+
+                          return (
+                            <Link
+                              key={action.id}
+                              component='button'
+                              onClick={(e: React.MouseEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleActionClick(action.id, e.shiftKey);
+                              }}
+                              sx={{
+                                color: 'text.primary',
+                                textDecoration: 'none',
+                                fontSize: '0.7rem',
+                                background: 'none',
+                                border: 'none',
+                                cursor: available ? 'pointer' : 'not-allowed',
+                                padding: '6px 4px',
+                                borderRadius: '6px',
+                                fontWeight: 600,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 0.25,
+                                opacity: available ? 1 : 0.4,
+                                transition: 'all 0.12s ease',
+                                '&:hover': available
+                                  ? {
+                                      backgroundColor: theme =>
+                                        theme.palette.mode === 'dark'
+                                          ? 'rgba(255,255,255,0.02)'
+                                          : 'rgba(0,0,0,0.04)',
+                                      transform: 'translateY(-2px)',
+                                    }
+                                  : {},
+                              }}
+                              title={
+                                available
+                                  ? action.tooltip || action.label
+                                  : `${action.label} — requires a Dynamics page`
+                              }
+                            >
+                              {IconComp2 ? (
+                                <IconComp2 sx={{ fontSize: 18 }} />
+                              ) : (
+                                <span style={{ fontSize: 18 }}>{iconEmoji}</span>
+                              )}
+                              <span style={{ fontSize: 11, marginTop: 2 }}>{short}</span>
+                            </Link>
+                          );
+                        })}
+                    </Box>
+                  </Box>
+                )}
               </>
             )}
 
