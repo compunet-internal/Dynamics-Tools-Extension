@@ -1009,10 +1009,10 @@ const PopupApp: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isContextReady && isConnected && extensionConfig.showNavigationSection) {
+    if (isContextReady && isConnected && extensionConfig.showNavigationSection && userHasAccess !== false) {
       void refreshSolutionDropdown();
     }
-  }, [isConnected, isContextReady, extensionConfig.showNavigationSection, makeClientUrl]);
+  }, [isConnected, isContextReady, extensionConfig.showNavigationSection, makeClientUrl, userHasAccess]);
 
   // removed skeleton and early not-connected returns — always render full UI
 
@@ -1130,30 +1130,7 @@ const PopupApp: React.FC = () => {
 
         {isContextReady && (
           <>
-            {/* Gate all tools behind role check for direct Dynamics pages */}
-            {!isMakePage && userHasAccess === false ? (
-              <Box
-                sx={{
-                  mt: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  py: 2,
-                  textAlign: 'center',
-                }}
-              >
-                <Typography variant='subtitle2' sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                  Insufficient permissions
-                </Typography>
-                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.4 }}>
-                  The System Administrator or System Customizer role is required to use this
-                  extension.
-                </Typography>
-              </Box>
-            ) : (
-              <>
-                {/* Default solution selector moved to top of popup */}
+            {/* Default solution selector moved to top of popup */}
                 {extensionConfig.showNavigationSection && (
                   <Box sx={{ mb: 1.5 }}>
                     <Box
@@ -1353,7 +1330,7 @@ const PopupApp: React.FC = () => {
                           alignItems: 'stretch',
                         }}
                       >
-                        {formActions.map((action: ActionConfig) => {
+                        {formActions.filter(a => !a.requiresAdminRole || userHasAccess !== false).map((action: ActionConfig) => {
                           const label = action.label || '';
                           const lowered = label.toLowerCase();
                           const getShort = (text: string) => {
@@ -1483,7 +1460,7 @@ const PopupApp: React.FC = () => {
                           alignItems: 'stretch',
                         }}
                       >
-                        {tableActions.map((action: ActionConfig) => {
+                        {tableActions.filter(a => !a.requiresAdminRole || userHasAccess !== false).map((action: ActionConfig) => {
                           const IconComp3 = (action.icon ||
                             null) as React.ComponentType<any> | null;
                           const short = action.shortLabel || action.label.split(' ')[0].slice(0, 8);
@@ -1585,7 +1562,8 @@ const PopupApp: React.FC = () => {
                         .filter(
                           action =>
                             action.id !== 'navigation:select-default-solution' &&
-                            action.id !== 'navigation:report-problem'
+                            action.id !== 'navigation:report-problem' &&
+                            (!action.requiresAdminRole || userHasAccess !== false)
                         )
                         .map((action: ActionConfig) => {
                           const label = action.label || '';
@@ -1666,8 +1644,6 @@ const PopupApp: React.FC = () => {
                     </Box>
                   </Box>
                 )}
-              </>
-            )}
 
             {/* Report a Problem - above hide toggle */}
             {(isConnected || isMakePage) && (

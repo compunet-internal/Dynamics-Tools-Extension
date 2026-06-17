@@ -55,6 +55,8 @@ export interface ActionConfig {
   requiresXrm?: boolean;
   // When true the action only works on make.powerapps.com pages where a table can be detected from the URL
   requiresMakeTableContext?: boolean;
+  // When true the action requires System Administrator or System Customizer role
+  requiresAdminRole?: boolean;
 }
 
 export const formActions: ActionConfig[] = [
@@ -187,6 +189,7 @@ export const formActions: ActionConfig[] = [
     shortLabel: 'Form Edit',
     shortIcon: '✏️',
     requiresFormContext: true,
+    requiresAdminRole: true,
   },
 ];
 
@@ -198,6 +201,7 @@ export const tableActions: ActionConfig[] = [
     tooltip: 'Open the current table/entity in Power Apps Maker portal',
     category: 'common',
     shortLabel: 'Table Edit',
+    requiresAdminRole: true,
     shortIcon: '🗂️',
     requiresMakeTableContext: true,
   },
@@ -211,6 +215,7 @@ export const tableActions: ActionConfig[] = [
     shortLabel: 'Processes',
     shortIcon: '🔧',
     requiresMakeTableContext: true,
+    requiresAdminRole: true,
   },
 ];
 
@@ -325,6 +330,7 @@ export const navigationActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Security',
     shortIcon: '🔒',
+    requiresAdminRole: true,
   },
   {
     id: 'navigation:open-system-jobs',
@@ -344,6 +350,7 @@ export const navigationActions: ActionConfig[] = [
     shortLabel: 'Solutions',
     shortIcon: '📦',
     requiresXrm: false,
+    requiresAdminRole: true,
   },
   {
     id: 'navigation:select-default-solution',
@@ -353,6 +360,7 @@ export const navigationActions: ActionConfig[] = [
     category: 'common',
     shortLabel: 'Default Sol',
     shortIcon: '🧩',
+    requiresAdminRole: true,
   },
   {
     id: 'navigation:open-processes',
@@ -362,6 +370,7 @@ export const navigationActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Process',
     shortIcon: '🔀',
+    requiresAdminRole: true,
   },
   {
     id: 'navigation:open-mailboxes',
@@ -371,6 +380,7 @@ export const navigationActions: ActionConfig[] = [
     category: 'advanced',
     shortLabel: 'Mailboxes',
     shortIcon: '✉️',
+    requiresAdminRole: true,
   },
   {
     id: 'navigation:open-main',
@@ -408,6 +418,7 @@ export const navigationActions: ActionConfig[] = [
     shortLabel: 'Solution Hist',
     shortIcon: '🕒',
     requiresXrm: false,
+    requiresAdminRole: true,
   },
   {
     id: 'navigation:pin-to-side-panel',

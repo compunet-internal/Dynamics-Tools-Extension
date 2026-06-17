@@ -93,8 +93,14 @@ const App: React.FC = () => {
   };
 
   // Memoize action arrays for better performance
-  const memoizedFormActions = useMemo(() => formActions, []);
-  const memoizedTableActions = useMemo(() => tableActions, []);
+  const memoizedFormActions = useMemo(
+    () => formActions.filter(a => !a.requiresAdminRole || userHasAccess !== false),
+    [userHasAccess]
+  );
+  const memoizedTableActions = useMemo(
+    () => tableActions.filter(a => !a.requiresAdminRole || userHasAccess !== false),
+    [userHasAccess]
+  );
   const memoizedDebuggingActions = useMemo(() => debuggingActions, []);
 
   const refreshCurrentSolutionTooltip = async () => {
@@ -130,16 +136,18 @@ const App: React.FC = () => {
 
   const memoizedNavigationActions = useMemo(
     () =>
-      navigationActions.map(action =>
-        action.id === 'navigation:select-default-solution'
-          ? {
-              ...action,
-              tooltip: currentSolutionTooltip,
-              onTooltipOpen: refreshCurrentSolutionTooltip,
-            }
-          : action
-      ),
-    [currentSolutionTooltip, isConnected]
+      navigationActions
+        .filter(a => !a.requiresAdminRole || userHasAccess !== false)
+        .map(action =>
+          action.id === 'navigation:select-default-solution'
+            ? {
+                ...action,
+                tooltip: currentSolutionTooltip,
+                onTooltipOpen: refreshCurrentSolutionTooltip,
+              }
+            : action
+        ),
+    [currentSolutionTooltip, isConnected, userHasAccess]
   );
 
   useEffect(() => {
@@ -628,32 +636,7 @@ const App: React.FC = () => {
 
       <Box sx={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
         {isConnected ? (
-          // On Dynamics pages (non-make), require System Administrator or System Customizer role.
-          // Make pages skip the role check since Xrm is unavailable there.
-          !isMakePage && userHasAccess === false ? (
-            <Box
-              sx={{
-                padding: '24px 16px',
-                textAlign: 'center',
-                color: 'text.secondary',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1.5,
-                height: '100%',
-              }}
-            >
-              <Box component='p' sx={{ margin: 0, fontWeight: 500 }}>
-                Insufficient permissions
-              </Box>
-              <Box component='p' sx={{ fontSize: '0.875rem', margin: 0 }}>
-                The System Administrator or System Customizer role is required to use this
-                extension.
-              </Box>
-            </Box>
-          ) : (
-            <>
+          <>
               {extensionConfig.showRecentlyUsed && (
                 <RecentlyUsed
                   allActions={allActions}
@@ -736,7 +719,6 @@ const App: React.FC = () => {
                 </>
               )}
             </>
-          )
         ) : (
           <Box
             sx={{
