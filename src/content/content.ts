@@ -656,7 +656,11 @@ class ContentScript {
    * scan too.
    */
   private setupSignInDialogDetector(): void {
-    const SESSION_EXPIRY_PHRASES = ['session is about to expire', 'sign in again', 'your session has expired'];
+    const SESSION_EXPIRY_PHRASES = [
+      'session is about to expire',
+      'sign in again',
+      'your session has expired',
+    ];
     let triggered = false;
 
     const scanDocument = (): void => {
